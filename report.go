@@ -133,7 +133,13 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 		}
 		for _, v := range issue.Labels {
 			if strings.Contains(*v.Name, "sig/") {
-				overview.sig = strings.Replace(*v.Name, "sig/", "", -1)
+				overview.sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
+				if strings.EqualFold(overview.sig, "cli") {
+					overview.sig = strings.ToUpper(overview.sig)
+				}
+				if strings.EqualFold(overview.sig, "cluster-lifecycle") {
+					overview.sig = strings.ToLower(overview.sig)
+				}
 				break
 			}
 		}
@@ -151,8 +157,8 @@ func printJobsStatistics() {
 	requiredJobs := []requiredJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
-		// { OutputName: "1.16-blocking", UrlName: "sig-release-1.16-blocking" },
-		// { OutputName: "1.16-informing", UrlName: "sig-release-1.16-blocking" },
+		{OutputName: "1.16-blocking", UrlName: "sig-release-1.16-blocking"},
+		{OutputName: "1.16-informing", UrlName: "sig-release-1.16-blocking"},
 	}
 
 	result := make([]statistics, 0)
