@@ -6,7 +6,7 @@ You can get the current overview for CI signal report by running
 GITHUB_AUTH_TOKEN=xxx go run report.go
 ```
 
-It needs github token to be able to query the project board for CI signal. For some reason even though those boards are available for public view, the APIs require auth.
+It needs github token to be able to query the project board for CI signal. For some reason even though those boards are available for public view, the APIs require auth. See [this documentation](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) to set up your access token.
 
 ## Example output
 
