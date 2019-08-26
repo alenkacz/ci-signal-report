@@ -13,9 +13,9 @@ It needs github token to be able to query the project board for CI signal. For s
 
 ## Running
 ```
-git clone <this repo> <folder>
+git clone git@github.com:alenkacz/ci-signal-report.git <folder>
 cd <folder>
-go run report.go
+GITHUB_AUTH_TOKEN=xxx go run report.go
 ```
 
 ## Example output
