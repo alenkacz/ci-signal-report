@@ -8,6 +8,16 @@ GITHUB_AUTH_TOKEN=xxx go run report.go
 
 It needs github token to be able to query the project board for CI signal. For some reason even though those boards are available for public view, the APIs require auth. See [this documentation](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) to set up your access token.
 
+## Prerequisites
+- GoLang >=1.11
+
+## Running
+```
+git clone <this repo> <folder>
+cd <folder>
+go run report.go
+```
+
 ## Example output
 
 ```
