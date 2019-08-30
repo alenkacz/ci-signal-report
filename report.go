@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -38,7 +39,7 @@ const (
 	newCards                = 4212817
 	underInvestigationCards = 4212819
 	observingCards          = 4212821
-	resolvedCards           = 5891313
+	ciSignalBoardProjectId  = 2093513
 )
 
 type issueOverview struct {
@@ -68,6 +69,10 @@ func printCardsOverview(token string) error {
 	if err != nil {
 		return err
 	}
+	resolvedCards, err := findResolvedCardsColumns(client)
+	if err != nil {
+		return err
+	}
 	resolvedCardsOverview, err := getCardsFromColumn(resolvedCards, client)
 	if err != nil {
 		return err
@@ -75,6 +80,24 @@ func printCardsOverview(token string) error {
 
 	printCards(newCardsOverview, investigationCardsOverview, observingCardsOverview, resolvedCardsOverview)
 	return nil
+}
+
+func findResolvedCardsColumns(client *github.Client) (int64, error) {
+	opt := &github.ListOptions{}
+	columns, _, err := client.Projects.ListProjectColumns(context.Background(), ciSignalBoardProjectId, opt)
+	if err != nil {
+		return 0, err
+	}
+	resolvedColumns := make([]*github.ProjectColumn, 0)
+	for _, v := range columns {
+		if v.Name != nil && strings.HasPrefix(*v.Name, "Resolved") {
+			resolvedColumns = append(resolvedColumns, v)
+		}
+	}
+	sort.Slice(resolvedColumns, func(i, j int) bool {
+		return resolvedColumns[i].GetID() < resolvedColumns[j].GetID()
+	})
+	return resolvedColumns[0].GetID(), err
 }
 
 func printCards(new []*issueOverview, investigation []*issueOverview, observing []*issueOverview, resolved []*issueOverview) {
