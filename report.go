@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/google/go-github/v27/github"
@@ -29,7 +28,7 @@ func main() {
 
 	err := printCardsOverview(githubApiToken)
 	if err != nil {
-		fmt.Printf("error when querying cards overview, exiting")
+		fmt.Printf("error when querying cards overview, exiting: %v\n", err)
 		os.Exit(1)
 	}
 	printJobsStatistics()
@@ -44,7 +43,7 @@ const (
 
 type issueOverview struct {
 	url   string
-	id    int
+	id    int64
 	title string
 	sig   string
 }
@@ -138,23 +137,16 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 	issues := make([]*issueOverview, 0)
 	for _, c := range cards {
 		issueUrl := *c.ContentURL
-		issueUrlParts := strings.Split(issueUrl, "/")
-		issueId, err := strconv.Atoi(issueUrlParts[len(issueUrlParts)-1])
+		issueDetail, err := getIssueDetail(issueUrl)
 		if err != nil {
-			fmt.Printf("Cannot parse issue ID from url %s", issueUrl)
-			return nil, err
-		}
-		issue, _, err := client.Issues.Get(context.Background(), "kubernetes", "kubernetes", issueId)
-		if err != nil {
-			fmt.Printf("Cannot query issue id %d", issueId)
 			return nil, err
 		}
 		overview := issueOverview{
-			url:   issueUrl,
-			id:    issueId,
-			title: cleanTitle(*issue.Title),
+			url:   issueDetail.HtmlUrl,
+			id:    issueDetail.Number,
+			title: cleanTitle(issueDetail.Title),
 		}
-		for _, v := range issue.Labels {
+		for _, v := range issueDetail.Labels {
 			if strings.Contains(*v.Name, "sig/") {
 				overview.sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
 				if strings.EqualFold(overview.sig, "cli") {
@@ -169,6 +161,31 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 		issues = append(issues, &overview)
 	}
 	return issues, nil
+}
+
+type IssueDetail struct {
+	Number  int64          `json:"number"`
+	HtmlUrl string         `json:"html_url"`
+	Title   string         `json:"title"`
+	Labels  []github.Label `json:"labels,omitempty"`
+}
+
+func getIssueDetail(url string) (*IssueDetail, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return nil, err
+	}
+	var result IssueDetail
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func cleanTitle(title string) string {
