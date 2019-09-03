@@ -77,7 +77,7 @@ func printCardsOverview(token string) error {
 		return err
 	}
 
-	printCards(newCardsOverview, investigationCardsOverview, observingCardsOverview, resolvedCardsOverview)
+	printCards(groupByCards(newCardsOverview), groupByCards(investigationCardsOverview), groupByCards(observingCardsOverview), groupByCards(resolvedCardsOverview))
 	return nil
 }
 
@@ -99,32 +99,52 @@ func findResolvedCardsColumns(client *github.Client) (int64, error) {
 	return resolvedColumns[0].GetID(), err
 }
 
-func printCards(new []*issueOverview, investigation []*issueOverview, observing []*issueOverview, resolved []*issueOverview) {
+func printCards(new map[string][]*issueOverview, investigation map[string][]*issueOverview, observing map[string][]*issueOverview, resolved map[string][]*issueOverview) {
 	fmt.Println("Resolved")
-	for _, v := range resolved {
-		fmt.Printf("SIG %s\n", v.sig)
-		fmt.Printf("#%d %s %s\n", v.id, v.url, v.title)
+	for k, v := range resolved {
+		fmt.Printf("SIG %s\n", k)
+		for _, i := range v {
+			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+		}
 		fmt.Println()
 	}
 
 	fmt.Println("In flight")
-	for _, v := range observing {
-		fmt.Printf("SIG %s\n", v.sig)
-		fmt.Printf("#%d %s %s\n", v.id, v.url, v.title)
+	for k, v := range observing {
+		fmt.Printf("SIG %s\n", k)
+		for _, i := range v {
+			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+		}
 		fmt.Println()
 	}
-	for _, v := range investigation {
-		fmt.Printf("SIG %s\n", v.sig)
-		fmt.Printf("#%d %s %s\n", v.id, v.url, v.title)
+	for k, v := range investigation {
+		fmt.Printf("SIG %s\n", k)
+		for _, i := range v {
+			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+		}
 		fmt.Println()
 	}
 
 	fmt.Println("New/Not Yet Started")
-	for _, v := range new {
-		fmt.Printf("SIG %s\n", v.sig)
-		fmt.Printf("#%d %s %s\n", v.id, v.url, v.title)
+	for k, v := range new {
+		fmt.Printf("SIG %s\n", k)
+		for _, i := range v {
+			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+		}
 		fmt.Println()
 	}
+}
+
+func groupByCards(issues []*issueOverview) map[string][]*issueOverview {
+	result := make(map[string][]*issueOverview)
+	for _, i := range issues {
+		_, ok := result[i.sig]
+		if !ok {
+			result[i.sig] = make([]*issueOverview, 0)
+		}
+		result[i.sig] = append(result[i.sig], i)
+	}
+	return result
 }
 
 func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview, error) {
