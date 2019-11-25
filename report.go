@@ -89,7 +89,7 @@ func findResolvedCardsColumns(client *github.Client) (int64, error) {
 	}
 	resolvedColumns := make([]*github.ProjectColumn, 0)
 	for _, v := range columns {
-		if v.Name != nil && strings.HasPrefix(*v.Name, "Resolved") {
+		if v.Name != nil && *v.Name == "Resolved" {
 			resolvedColumns = append(resolvedColumns, v)
 		}
 	}
@@ -197,8 +197,8 @@ func printJobsStatistics() {
 	requiredJobs := []requiredJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
-		{OutputName: "1.16-blocking", UrlName: "sig-release-1.16-blocking"},
-		{OutputName: "1.16-informing", UrlName: "sig-release-1.16-blocking"},
+		{OutputName: "1.17-blocking", UrlName: "sig-release-1.17-blocking"},
+		{OutputName: "1.17-informing", UrlName: "sig-release-1.17-informing"},
 	}
 
 	result := make([]statistics, 0)
