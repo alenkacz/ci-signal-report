@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/go-github/v27/github"
+	"github.com/google/go-github/v34/github"
 	"golang.org/x/oauth2"
 )
 
@@ -187,7 +187,7 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 			}
 			issues = append(issues, &overview)
 		}
-	}	
+	}
 	return issues, nil
 }
 
@@ -225,8 +225,8 @@ func printJobsStatistics(version string) {
 	requiredJobs := []requiredJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
-		{OutputName: version+"-blocking", UrlName: "sig-release-"+version+"-blocking"},
-		{OutputName: version+"-informing", UrlName: "sig-release-"+version+"-informing"},
+		{OutputName: version + "-blocking", UrlName: "sig-release-" + version + "-blocking"},
+		{OutputName: version + "-informing", UrlName: "sig-release-" + version + "-informing"},
 	}
 
 	result := make([]statistics, 0)
