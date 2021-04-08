@@ -3,9 +3,9 @@
 You can get the current overview for CI signal report by running
 
 ```
-GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx go run report.go
+GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx USER=xxx go run report.go
 ```
-Where the RELEASE_VERSION can be like `1.21`.
+Where the RELEASE_VERSION can be like `1.21` and USER is your GitHub user.
 
 It needs github token to be able to query the project board for CI signal. For some reason even though those boards are available for public view, the APIs require auth. See [this documentation](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) to set up your access token.
 
@@ -16,8 +16,17 @@ It needs github token to be able to query the project board for CI signal. For s
 ```
 git clone git@github.com:alenkacz/ci-signal-report.git <folder>
 cd <folder>
-GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx go run report.go
+GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx USER=xxx go run report.go
 ```
+
+## Ratelimits
+GitHub API has rate limits, to see how much you have used you can query like this (replace User with your GH user and Token with your Auth Token):
+```
+curl \
+  -u USER:TOKEN -H "Accept: application/vnd.github.v3+json" \
+  https://api.github.com/rate_limit
+```
+
 
 ## Example output
 
