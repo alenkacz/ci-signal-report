@@ -26,12 +26,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	releaseVersion := os.Getenv("RELEASE_VERSION")
+	if githubApiToken == "" {
+		fmt.Printf("Please provide RELEASE_VERSION env variable  to be able to pull cards from the github board, example 1.21")
+		os.Exit(1)
+	}
+
 	err := printCardsOverview(githubApiToken)
 	if err != nil {
 		fmt.Printf("error when querying cards overview, exiting: %v\n", err)
 		os.Exit(1)
 	}
-	printJobsStatistics()
+	printJobsStatistics(releaseVersion)
 }
 
 const (
@@ -156,30 +162,32 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 	}
 	issues := make([]*issueOverview, 0)
 	for _, c := range cards {
-		issueUrl := *c.ContentURL
-		issueDetail, err := getIssueDetail(issueUrl)
-		if err != nil {
-			return nil, err
-		}
-		overview := issueOverview{
-			url:   issueDetail.HtmlUrl,
-			id:    issueDetail.Number,
-			title: cleanTitle(issueDetail.Title),
-		}
-		for _, v := range issueDetail.Labels {
-			if strings.Contains(*v.Name, "sig/") {
-				overview.sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
-				if strings.EqualFold(overview.sig, "cli") {
-					overview.sig = strings.ToUpper(overview.sig)
-				}
-				if strings.EqualFold(overview.sig, "cluster-lifecycle") {
-					overview.sig = strings.ToLower(overview.sig)
-				}
-				break
+		if c.ContentURL != nil {
+			issueUrl := *c.ContentURL
+			issueDetail, err := getIssueDetail(issueUrl)
+			if err != nil {
+				return nil, err
 			}
+			overview := issueOverview{
+				url:   issueDetail.HtmlUrl,
+				id:    issueDetail.Number,
+				title: cleanTitle(issueDetail.Title),
+			}
+			for _, v := range issueDetail.Labels {
+				if strings.Contains(*v.Name, "sig/") {
+					overview.sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
+					if strings.EqualFold(overview.sig, "cli") {
+						overview.sig = strings.ToUpper(overview.sig)
+					}
+					if strings.EqualFold(overview.sig, "cluster-lifecycle") {
+						overview.sig = strings.ToLower(overview.sig)
+					}
+					break
+				}
+			}
+			issues = append(issues, &overview)
 		}
-		issues = append(issues, &overview)
-	}
+	}	
 	return issues, nil
 }
 
@@ -213,12 +221,12 @@ func cleanTitle(title string) string {
 	return title
 }
 
-func printJobsStatistics() {
+func printJobsStatistics(version string) {
 	requiredJobs := []requiredJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
-		{OutputName: "1.17-blocking", UrlName: "sig-release-1.17-blocking"},
-		{OutputName: "1.17-informing", UrlName: "sig-release-1.17-informing"},
+		{OutputName: version+"-blocking", UrlName: "sig-release-"+version+"-blocking"},
+		{OutputName: version+"-informing", UrlName: "sig-release-"+version+"-informing"},
 	}
 
 	result := make([]statistics, 0)
