@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v34/github"
-	"golang.org/x/oauth2"
 )
 
 type requiredJob struct {
@@ -27,12 +26,18 @@ func main() {
 	}
 
 	releaseVersion := os.Getenv("RELEASE_VERSION")
-	if githubApiToken == "" {
+	if releaseVersion == "" {
 		fmt.Printf("Please provide RELEASE_VERSION env variable  to be able to pull cards from the github board, example 1.21")
 		os.Exit(1)
 	}
 
-	err := printCardsOverview(githubApiToken)
+	githubUser := os.Getenv("USER")
+	if githubUser == "" {
+		fmt.Printf("Please provide USER env variable to be able to pull cards from the github board")
+		os.Exit(1)
+	}
+
+	err := printCardsOverview(githubApiToken, githubUser)
 	if err != nil {
 		fmt.Printf("error when querying cards overview, exiting: %v\n", err)
 		os.Exit(1)
@@ -54,13 +59,22 @@ type issueOverview struct {
 	sig   string
 }
 
-func printCardsOverview(token string) error {
-	ctx := context.Background()
+func printCardsOverview(token string, user string) error {
+	/* ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
+	*/
+
+	username := user
+	tp := github.BasicAuthTransport{
+		Username: strings.TrimSpace(username),
+		Password: strings.TrimSpace(token),
+	}
+
+	client := github.NewClient(tp.Client())
 
 	newCardsOverview, err := getCardsFromColumn(newCards, client)
 	if err != nil {
@@ -84,6 +98,7 @@ func printCardsOverview(token string) error {
 	}
 
 	printCards(groupByCards(newCardsOverview), groupByCards(investigationCardsOverview), groupByCards(observingCardsOverview), groupByCards(resolvedCardsOverview))
+
 	return nil
 }
 
