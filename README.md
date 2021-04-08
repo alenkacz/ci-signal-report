@@ -3,19 +3,20 @@
 You can get the current overview for CI signal report by running
 
 ```
-GITHUB_AUTH_TOKEN=xxx go run report.go
+GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx go run report.go
 ```
+Where the RELEASE_VERSION can be like `1.21`.
 
 It needs github token to be able to query the project board for CI signal. For some reason even though those boards are available for public view, the APIs require auth. See [this documentation](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) to set up your access token.
 
 ## Prerequisites
-- GoLang >=1.11
+- GoLang >=1.16
 
 ## Running
 ```
 git clone git@github.com:alenkacz/ci-signal-report.git <folder>
 cd <folder>
-GITHUB_AUTH_TOKEN=xxx go run report.go
+GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx go run report.go
 ```
 
 ## Example output
