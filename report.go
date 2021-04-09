@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/google/go-github/v34/github"
+	"golang.org/x/oauth2"
 )
 
 type requiredJob struct {
@@ -31,13 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	githubUser := os.Getenv("USER")
-	if githubUser == "" {
-		fmt.Printf("Please provide USER env variable to be able to pull cards from the github board")
-		os.Exit(1)
-	}
-
-	err := printCardsOverview(githubApiToken, githubUser)
+	err := printCardsOverview(githubApiToken)
 	if err != nil {
 		fmt.Printf("error when querying cards overview, exiting: %v\n", err)
 		os.Exit(1)
@@ -59,32 +55,23 @@ type issueOverview struct {
 	sig   string
 }
 
-func printCardsOverview(token string, user string) error {
-	/* ctx := context.Background()
+func printCardsOverview(token string) error {
+	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
-	*/
 
-	username := user
-	tp := github.BasicAuthTransport{
-		Username: strings.TrimSpace(username),
-		Password: strings.TrimSpace(token),
-	}
-
-	client := github.NewClient(tp.Client())
-
-	newCardsOverview, err := getCardsFromColumn(newCards, client)
+	newCardsOverview, err := getCardsFromColumn(newCards, client, token)
 	if err != nil {
 		return err
 	}
-	investigationCardsOverview, err := getCardsFromColumn(underInvestigationCards, client)
+	investigationCardsOverview, err := getCardsFromColumn(underInvestigationCards, client, token)
 	if err != nil {
 		return err
 	}
-	observingCardsOverview, err := getCardsFromColumn(observingCards, client)
+	observingCardsOverview, err := getCardsFromColumn(observingCards, client, token)
 	if err != nil {
 		return err
 	}
@@ -92,7 +79,7 @@ func printCardsOverview(token string, user string) error {
 	if err != nil {
 		return err
 	}
-	resolvedCardsOverview, err := getCardsFromColumn(resolvedCards, client)
+	resolvedCardsOverview, err := getCardsFromColumn(resolvedCards, client, token)
 	if err != nil {
 		return err
 	}
@@ -168,7 +155,7 @@ func groupByCards(issues []*issueOverview) map[string][]*issueOverview {
 	return result
 }
 
-func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview, error) {
+func getCardsFromColumn(cardsId int64, client *github.Client, token string) ([]*issueOverview, error) {
 	opt := &github.ProjectCardListOptions{}
 	cards, _, err := client.Projects.ListProjectCards(context.Background(), cardsId, opt)
 	if err != nil {
@@ -179,10 +166,11 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 	for _, c := range cards {
 		if c.ContentURL != nil {
 			issueUrl := *c.ContentURL
-			issueDetail, err := getIssueDetail(issueUrl)
+			issueDetail, err := getIssueDetail(issueUrl, token)
 			if err != nil {
 				return nil, err
 			}
+
 			overview := issueOverview{
 				url:   issueDetail.HtmlUrl,
 				id:    issueDetail.Number,
@@ -213,11 +201,26 @@ type IssueDetail struct {
 	Labels  []github.Label `json:"labels,omitempty"`
 }
 
-func getIssueDetail(url string) (*IssueDetail, error) {
-	resp, err := http.Get(url)
+func getIssueDetail(url string, authToken string) (*IssueDetail, error) {
+	// Create a Bearer string by appending string access token
+	var bearer = "Bearer " + authToken
+
+	// Create a new request using http
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
+	// add authorization header to the req
+	req.Header.Add("Authorization", bearer)
+
+	// Send req using http Client
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error on response.\n[ERROR] -", err)
+	}
+	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Printf("%v", err)
