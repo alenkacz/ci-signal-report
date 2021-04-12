@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
 
-	"github.com/google/go-github/v27/github"
+	"github.com/google/go-github/v34/github"
 	"golang.org/x/oauth2"
 )
 
@@ -26,12 +27,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	releaseVersion := os.Getenv("RELEASE_VERSION")
+	if releaseVersion == "" {
+		fmt.Printf("Please provide RELEASE_VERSION env variable  to be able to pull cards from the github board, example 1.21")
+		os.Exit(1)
+	}
+
 	err := printCardsOverview(githubApiToken)
 	if err != nil {
 		fmt.Printf("error when querying cards overview, exiting: %v\n", err)
 		os.Exit(1)
 	}
-	printJobsStatistics()
+	printJobsStatistics(releaseVersion)
 }
 
 const (
@@ -56,15 +63,15 @@ func printCardsOverview(token string) error {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	newCardsOverview, err := getCardsFromColumn(newCards, client)
+	newCardsOverview, err := getCardsFromColumn(newCards, client, token)
 	if err != nil {
 		return err
 	}
-	investigationCardsOverview, err := getCardsFromColumn(underInvestigationCards, client)
+	investigationCardsOverview, err := getCardsFromColumn(underInvestigationCards, client, token)
 	if err != nil {
 		return err
 	}
-	observingCardsOverview, err := getCardsFromColumn(observingCards, client)
+	observingCardsOverview, err := getCardsFromColumn(observingCards, client, token)
 	if err != nil {
 		return err
 	}
@@ -72,12 +79,13 @@ func printCardsOverview(token string) error {
 	if err != nil {
 		return err
 	}
-	resolvedCardsOverview, err := getCardsFromColumn(resolvedCards, client)
+	resolvedCardsOverview, err := getCardsFromColumn(resolvedCards, client, token)
 	if err != nil {
 		return err
 	}
 
 	printCards(groupByCards(newCardsOverview), groupByCards(investigationCardsOverview), groupByCards(observingCardsOverview), groupByCards(resolvedCardsOverview))
+
 	return nil
 }
 
@@ -147,7 +155,7 @@ func groupByCards(issues []*issueOverview) map[string][]*issueOverview {
 	return result
 }
 
-func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview, error) {
+func getCardsFromColumn(cardsId int64, client *github.Client, token string) ([]*issueOverview, error) {
 	opt := &github.ProjectCardListOptions{}
 	cards, _, err := client.Projects.ListProjectCards(context.Background(), cardsId, opt)
 	if err != nil {
@@ -156,29 +164,32 @@ func getCardsFromColumn(cardsId int64, client *github.Client) ([]*issueOverview,
 	}
 	issues := make([]*issueOverview, 0)
 	for _, c := range cards {
-		issueUrl := *c.ContentURL
-		issueDetail, err := getIssueDetail(issueUrl)
-		if err != nil {
-			return nil, err
-		}
-		overview := issueOverview{
-			url:   issueDetail.HtmlUrl,
-			id:    issueDetail.Number,
-			title: cleanTitle(issueDetail.Title),
-		}
-		for _, v := range issueDetail.Labels {
-			if strings.Contains(*v.Name, "sig/") {
-				overview.sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
-				if strings.EqualFold(overview.sig, "cli") {
-					overview.sig = strings.ToUpper(overview.sig)
-				}
-				if strings.EqualFold(overview.sig, "cluster-lifecycle") {
-					overview.sig = strings.ToLower(overview.sig)
-				}
-				break
+		if c.ContentURL != nil {
+			issueUrl := *c.ContentURL
+			issueDetail, err := getIssueDetail(issueUrl, token)
+			if err != nil {
+				return nil, err
 			}
+
+			overview := issueOverview{
+				url:   issueDetail.HtmlUrl,
+				id:    issueDetail.Number,
+				title: cleanTitle(issueDetail.Title),
+			}
+			for _, v := range issueDetail.Labels {
+				if strings.Contains(*v.Name, "sig/") {
+					overview.sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
+					if strings.EqualFold(overview.sig, "cli") {
+						overview.sig = strings.ToUpper(overview.sig)
+					}
+					if strings.EqualFold(overview.sig, "cluster-lifecycle") {
+						overview.sig = strings.ToLower(overview.sig)
+					}
+					break
+				}
+			}
+			issues = append(issues, &overview)
 		}
-		issues = append(issues, &overview)
 	}
 	return issues, nil
 }
@@ -190,11 +201,26 @@ type IssueDetail struct {
 	Labels  []github.Label `json:"labels,omitempty"`
 }
 
-func getIssueDetail(url string) (*IssueDetail, error) {
-	resp, err := http.Get(url)
+func getIssueDetail(url string, authToken string) (*IssueDetail, error) {
+	// Create a Bearer string by appending string access token
+	var bearer = "Bearer " + authToken
+
+	// Create a new request using http
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
+	// add authorization header to the req
+	req.Header.Add("Authorization", bearer)
+
+	// Send req using http Client
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error on response.\n[ERROR] -", err)
+	}
+	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -213,12 +239,12 @@ func cleanTitle(title string) string {
 	return title
 }
 
-func printJobsStatistics() {
+func printJobsStatistics(version string) {
 	requiredJobs := []requiredJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
-		{OutputName: "1.17-blocking", UrlName: "sig-release-1.17-blocking"},
-		{OutputName: "1.17-informing", UrlName: "sig-release-1.17-informing"},
+		{OutputName: version + "-blocking", UrlName: "sig-release-" + version + "-blocking"},
+		{OutputName: version + "-informing", UrlName: "sig-release-" + version + "-informing"},
 	}
 
 	result := make([]statistics, 0)
