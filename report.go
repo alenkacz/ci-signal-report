@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -21,6 +22,9 @@ type requiredJob struct {
 }
 
 func main() {
+	boolPtr := flag.Bool("short", false, "a short report for mails and slack")
+	flag.Parse()
+
 	githubApiToken := os.Getenv("GITHUB_AUTH_TOKEN")
 	if githubApiToken == "" {
 		fmt.Printf("Please provide GITHUB_AUTH_TOKEN env variable to be able to pull cards from the github board")
@@ -28,16 +32,13 @@ func main() {
 	}
 
 	releaseVersion := os.Getenv("RELEASE_VERSION")
-	if releaseVersion == "" {
-		fmt.Printf("Please provide RELEASE_VERSION env variable  to be able to pull cards from the github board, example 1.21")
-		os.Exit(1)
-	}
 
-	err := printCardsOverview(githubApiToken)
+	err := printCardsOverview(githubApiToken, *boolPtr)
 	if err != nil {
 		fmt.Printf("error when querying cards overview, exiting: %v\n", err)
 		os.Exit(1)
 	}
+
 	printJobsStatistics(releaseVersion)
 }
 
@@ -55,7 +56,7 @@ type issueOverview struct {
 	sig   string
 }
 
-func printCardsOverview(token string) error {
+func printCardsOverview(token string, setShort bool) error {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -84,7 +85,7 @@ func printCardsOverview(token string) error {
 		return err
 	}
 
-	printCards(groupByCards(newCardsOverview), groupByCards(investigationCardsOverview), groupByCards(observingCardsOverview), groupByCards(resolvedCardsOverview))
+	printCards(setShort, groupByCards(newCardsOverview), groupByCards(investigationCardsOverview), groupByCards(observingCardsOverview), groupByCards(resolvedCardsOverview))
 
 	return nil
 }
@@ -107,32 +108,7 @@ func findResolvedCardsColumns(client *github.Client) (int64, error) {
 	return resolvedColumns[0].GetID(), err
 }
 
-func printCards(new map[string][]*issueOverview, investigation map[string][]*issueOverview, observing map[string][]*issueOverview, resolved map[string][]*issueOverview) {
-	fmt.Println("Resolved")
-	for k, v := range resolved {
-		fmt.Printf("SIG %s\n", k)
-		for _, i := range v {
-			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
-		}
-		fmt.Println()
-	}
-
-	fmt.Println("In flight")
-	for k, v := range observing {
-		fmt.Printf("SIG %s\n", k)
-		for _, i := range v {
-			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
-		}
-		fmt.Println()
-	}
-	for k, v := range investigation {
-		fmt.Printf("SIG %s\n", k)
-		for _, i := range v {
-			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
-		}
-		fmt.Println()
-	}
-
+func printCards(shortReport bool, new map[string][]*issueOverview, investigation map[string][]*issueOverview, observing map[string][]*issueOverview, resolved map[string][]*issueOverview) {
 	fmt.Println("New/Not Yet Started")
 	for k, v := range new {
 		fmt.Printf("SIG %s\n", k)
@@ -141,6 +117,36 @@ func printCards(new map[string][]*issueOverview, investigation map[string][]*iss
 		}
 		fmt.Println()
 	}
+
+	fmt.Println("In flight")
+	for k, v := range investigation {
+		fmt.Printf("SIG %s\n", k)
+		for _, i := range v {
+			fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+		}
+		fmt.Println()
+	}
+
+	if shortReport == false {
+		fmt.Println("Observing")
+		for k, v := range observing {
+			fmt.Printf("SIG %s\n", k)
+			for _, i := range v {
+				fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+			}
+			fmt.Println()
+		}
+
+		fmt.Println("Resolved")
+		for k, v := range resolved {
+			fmt.Printf("SIG %s\n", k)
+			for _, i := range v {
+				fmt.Printf("#%d %s %s\n", i.id, i.url, i.title)
+			}
+			fmt.Println()
+		}
+	}
+
 }
 
 func groupByCards(issues []*issueOverview) map[string][]*issueOverview {
@@ -240,11 +246,21 @@ func cleanTitle(title string) string {
 }
 
 func printJobsStatistics(version string) {
+
 	requiredJobs := []requiredJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
-		{OutputName: version + "-blocking", UrlName: "sig-release-" + version + "-blocking"},
-		{OutputName: version + "-informing", UrlName: "sig-release-" + version + "-informing"},
+	}
+
+	if version != "" {
+		requiredJobsVersion := []requiredJob{
+			{OutputName: version + "-blocking", UrlName: "sig-release-" + version + "-blocking"},
+			{OutputName: version + "-informing", UrlName: "sig-release-" + version + "-informing"},
+		}
+
+		for i, _ := range requiredJobsVersion {
+			requiredJobs = append(requiredJobs, requiredJobsVersion[i])
+		}
 	}
 
 	result := make([]statistics, 0)
