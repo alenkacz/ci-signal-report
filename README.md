@@ -2,39 +2,45 @@
 
 You can get the current overview for CI signal report by running
 
-```
+```bash
 GITHUB_AUTH_TOKEN=xxx go run report.go
 ```
 
 It needs a GitHub token to be able to query the project board for CI signal. For some reason even though those boards are available for public view, the APIs require auth. See [this documentation](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) to set up your access token.
 
 ## Prerequisites
+
 - GoLang >=1.16
 
 ## Run the report
-```
+
+```bash
 git clone git@github.com:alenkacz/ci-signal-report.git <folder>
 cd <folder>
-GITHUB_AUTH_TOKEN=xxx go run report.go
+GITHUB_AUTH_TOKEN=xxx go run main.go
 ```
 
 ### Other version statistics
+
 By adding `RELEASE_VERSION=xxx` where the XXX can be like `1.21`, the report statistics get extended for the choosen version.
 
-```
+```bash
 GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx go run report.go
 ```
 
 ### Short report
+
 You can also output a short version of the report with the flag `-short`. This reduces the report to `New/Not Yet Started` and `In Flight` issues.
 
-```
+```bash
 GITHUB_AUTH_TOKEN=xxx go run report.go -short
 ```
 
 ## Rate limits
+
 GitHub API has rate limits, to see how much you have used you can query like this (replace User with your GH user and Token with your Auth Token):
-```
+
+```bash
 curl \
   -u GIT_HUB-USER:GIT_HUB_TOKEN -H "Accept: application/vnd.github.v3+json" \
   https://api.github.com/rate_limit & curl \
@@ -42,9 +48,9 @@ curl \
   https://api.github.com/rate_limit
 ```
 
-
 ## Example output
-```
+
+```bash
 GITHUB_AUTH_TOKEN=yourFavouriteGitHubTokenLivesHere RELEASE_VERSION=1.21 go run report.go -short
 
 New/Not Yet Started
@@ -102,4 +108,4 @@ Failures in 1.21-Informing
     4 are flaking
     3 are failing
     0 are stale
- ```
+```

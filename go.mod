@@ -1,4 +1,4 @@
-module github.com/alenkacz/ci-signal-report
+module github.com/leonardpahlke/ci-signal-report
 
 go 1.16
 
