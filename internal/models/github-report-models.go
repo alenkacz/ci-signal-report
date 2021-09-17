@@ -15,3 +15,14 @@ type GhIssueDetail struct {
 	Title   string         `json:"title"`
 	Labels  []github.Label `json:"labels,omitempty"`
 }
+
+type GithubIssueCardConfig struct {
+	CardsTitle        string
+	CardId            int
+	OmitWithFlagShort bool
+}
+
+type GithubIssueCardSummary struct {
+	CardsTitle              string
+	ListGithubIssueOverview map[string][]*GhIssueOverview
+}

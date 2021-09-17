@@ -10,55 +10,57 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/alenkacz/ci-signal-report/internal/config"
-	"github.com/alenkacz/ci-signal-report/internal/models"
 	"github.com/google/go-github/v34/github"
+	"github.com/leonardpahlke/ci-signal-report/internal/config"
+	"github.com/leonardpahlke/ci-signal-report/internal/models"
 )
 
-func PrintCardsOverview(meta config.Meta) error {
-	var listGithubIssueOverview []map[string][]*models.GhIssueOverview
-	for _, e := range config.GithubIssueCardConfigs {
+func RequestGitHubCardsData(meta config.Meta) ([]models.GithubIssueCardSummary, error) {
+	resolvedCardsId, err := findResolvedCardsWithProjectId(meta.GitHubClient, config.GhCiSignalBoardProjectId)
+	if err != nil {
+		return nil, err
+	}
+	var githubIssueCardConfigs = []models.GithubIssueCardConfig{
+		{
+			CardsTitle:        "New/Not Yet Started",
+			CardId:            config.GhNewCardsId,
+			OmitWithFlagShort: false,
+		},
+		{
+			CardsTitle:        "In flight",
+			CardId:            config.GhUnderInvestigationCardsId,
+			OmitWithFlagShort: false,
+		},
+		{
+			CardsTitle:        "Observing",
+			CardId:            config.GhObservingCardsId,
+			OmitWithFlagShort: true,
+		},
+		{
+			CardsTitle:        "Resolved",
+			CardId:            int(resolvedCardsId),
+			OmitWithFlagShort: true,
+		},
+	}
+
+	var listGithubIssueOverview []models.GithubIssueCardSummary
+	for _, e := range githubIssueCardConfigs {
 		if !(e.OmitWithFlagShort && meta.Flags.Short) {
-			cardsOverview, err := reqGhCardsFromColumn(config.GhNewCards, meta.GitHubClient, meta.Env.GithubToken)
+			cardsOverview, err := reqGhCardsFromColumn(int64(e.CardId), meta.GitHubClient, meta.Env.GithubToken)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			listGithubIssueOverview = append(listGithubIssueOverview, groupByCards(cardsOverview))
+			listGithubIssueOverview = append(listGithubIssueOverview, models.GithubIssueCardSummary{
+				CardsTitle:              e.CardsTitle,
+				ListGithubIssueOverview: groupByCards(cardsOverview),
+			})
 		}
 	}
-
-	newCardsOverview, err := reqGhCardsFromColumn(config.GhNewCards, meta.GitHubClient, meta.Env.GithubToken)
-	if err != nil {
-		return err
-	}
-	investigationCardsOverview, err := reqGhCardsFromColumn(config.GhUnderInvestigationCards, meta.GitHubClient, meta.Env.GithubToken)
-	if err != nil {
-		return err
-	}
-	observingCardsOverview, err := reqGhCardsFromColumn(config.GhObservingCards, meta.GitHubClient, meta.Env.GithubToken)
-	if err != nil {
-		return err
-	}
-	resolvedCards, err := findResolvedCardsColumnId(meta.GitHubClient)
-	if err != nil {
-		return err
-	}
-	resolvedCardsOverview, err := reqGhCardsFromColumn(resolvedCards, meta.GitHubClient, meta.Env.GithubToken)
-	if err != nil {
-		return err
-	}
-
-	PrintGhCards(meta.Flags.Short, groupByCards(newCardsOverview), groupByCards(investigationCardsOverview), groupByCards(observingCardsOverview), groupByCards(resolvedCardsOverview))
-
-	return nil
+	return listGithubIssueOverview, nil
 }
 
-func RequestGithubData() {
-
-}
-
-func findResolvedCardsColumnId(client *github.Client) (int64, error) {
-	cards, _, err := client.Projects.ListProjectColumns(context.Background(), config.GhCiSignalBoardProjectId, &github.ListOptions{})
+func findResolvedCardsWithProjectId(client *github.Client, projectId int64) (int64, error) {
+	cards, _, err := client.Projects.ListProjectColumns(context.Background(), projectId, &github.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
@@ -72,18 +74,6 @@ func findResolvedCardsColumnId(client *github.Client) (int64, error) {
 		return resolvedColumns[i].GetID() < resolvedColumns[j].GetID()
 	})
 	return resolvedColumns[0].GetID(), err
-}
-
-func groupByCards(issues []*models.GhIssueOverview) map[string][]*models.GhIssueOverview {
-	result := make(map[string][]*models.GhIssueOverview)
-	for _, issue := range issues {
-		_, ok := result[issue.Sig]
-		if !ok {
-			result[issue.Sig] = make([]*models.GhIssueOverview, 0)
-		}
-		result[issue.Sig] = append(result[issue.Sig], issue)
-	}
-	return result
 }
 
 func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([]*models.GhIssueOverview, error) {
@@ -122,6 +112,18 @@ func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([
 		}
 	}
 	return issues, nil
+}
+
+func groupByCards(issues []*models.GhIssueOverview) map[string][]*models.GhIssueOverview {
+	result := make(map[string][]*models.GhIssueOverview)
+	for _, issue := range issues {
+		_, ok := result[issue.Sig]
+		if !ok {
+			result[issue.Sig] = make([]*models.GhIssueOverview, 0)
+		}
+		result[issue.Sig] = append(result[issue.Sig], issue)
+	}
+	return result
 }
 
 func requestGhIssueDetail(url string, authToken string) (*models.GhIssueDetail, error) {

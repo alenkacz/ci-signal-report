@@ -6,11 +6,12 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/alenkacz/ci-signal-report/internal/config"
-	"github.com/alenkacz/ci-signal-report/internal/models"
+	"github.com/leonardpahlke/ci-signal-report/internal/config"
+	"github.com/leonardpahlke/ci-signal-report/internal/models"
 )
 
-func PrintTestgridJobsStatistics(meta config.Meta) {
+// This function is used to accumulate a summary of testgrid
+func RequestTestgridOverview(meta config.Meta) ([]models.TestGridStatistics, error) {
 	// The report checks master-blocking and master-informing
 	requiredJobs := []models.TestgridJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
@@ -30,38 +31,41 @@ func PrintTestgridJobsStatistics(meta config.Meta) {
 
 	testgridStats := make([]models.TestGridStatistics, 0)
 	for _, kubeJob := range requiredJobs {
-		url := fmt.Sprintf("https://testgrid.k8s.io/%s/summary", kubeJob.UrlName)
-		resp, err := http.Get(url)
+		// Request Testgrid subpage summary data
+		jobs, err := requestTestgridSiteSummary(kubeJob)
 		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-		jobs, err := getStatsFromJson(body)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
+			return nil, err
 		}
 		statistics := getStatistics(jobs)
 		statistics.Name = kubeJob.OutputName
 		testgridStats = append(testgridStats, statistics)
 	}
-
-	for _, stat := range testgridStats {
-		fmt.Printf("Failures in %s\n", stat.Name)
-		fmt.Printf("\t%d jobs total\n", stat.Total)
-		fmt.Printf("\t%d are passing\n", stat.Passing)
-		fmt.Printf("\t%d are flaking\n", stat.Flaking)
-		fmt.Printf("\t%d are failing\n", stat.Failing)
-		fmt.Printf("\t%d are stale\n", stat.Stale)
-		fmt.Print("\n\n")
-	}
+	return testgridStats, nil
 }
 
+// This function is used to request job summary data from a testgrid subpage
+func requestTestgridSiteSummary(kubeJob models.TestgridJob) (models.TestgrudJobsOverview, error) {
+	// This url points to testgrid/summary which returns a JSON document
+	url := fmt.Sprintf("https://testgrid.k8s.io/%s/summary", kubeJob.UrlName)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	// Parse body form http request
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	// Unmarshal JSON from body into models.TestgrudJobsOverview struct
+	jobs := make(models.TestgrudJobsOverview)
+	err = json.Unmarshal(body, &jobs)
+	if err != nil {
+		return nil, err
+	}
+	return jobs, nil
+}
+
+// This function is used to count up the status from testgrid tests
 func getStatistics(jobs map[string]models.TestgridOverview) models.TestGridStatistics {
 	result := models.TestGridStatistics{}
 	for _, v := range jobs {
@@ -77,13 +81,4 @@ func getStatistics(jobs map[string]models.TestgridOverview) models.TestGridStati
 		result.Total++
 	}
 	return result
-}
-
-func getStatsFromJson(body []byte) (models.TestgrudJobsOverview, error) {
-	result := make(models.TestgrudJobsOverview)
-	err := json.Unmarshal(body, &result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
