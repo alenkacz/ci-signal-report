@@ -1,4 +1,4 @@
-package report
+package ci_reporter
 
 import (
 	"context"
@@ -11,29 +11,27 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v34/github"
-	"github.com/leonardpahlke/ci-signal-report/internal/config"
-	"github.com/leonardpahlke/ci-signal-report/internal/models"
 )
 
-func RequestGitHubCardsData(meta config.Meta) ([]models.GithubIssueCardSummary, error) {
-	resolvedCardsId, err := findResolvedCardsWithProjectId(meta.GitHubClient, config.GhCiSignalBoardProjectId)
+func RequestGitHubCardsData(meta CiReporterMeta) ([]GithubIssueCardSummary, error) {
+	resolvedCardsId, err := findResolvedCardsWithProjectId(meta.GitHubClient, GithubCiSignalBoardProjectId)
 	if err != nil {
 		return nil, err
 	}
-	var githubIssueCardConfigs = []models.GithubIssueCardConfig{
+	var githubIssueCardConfigs = []GithubIssueCardConfig{
 		{
 			CardsTitle:        "New/Not Yet Started",
-			CardId:            config.GhNewCardsId,
+			CardId:            GithubNewCardsId,
 			OmitWithFlagShort: false,
 		},
 		{
 			CardsTitle:        "In flight",
-			CardId:            config.GhUnderInvestigationCardsId,
+			CardId:            GithubUnderInvestigationCardsId,
 			OmitWithFlagShort: false,
 		},
 		{
 			CardsTitle:        "Observing",
-			CardId:            config.GhObservingCardsId,
+			CardId:            GithubObservingCardsId,
 			OmitWithFlagShort: true,
 		},
 		{
@@ -43,14 +41,14 @@ func RequestGitHubCardsData(meta config.Meta) ([]models.GithubIssueCardSummary, 
 		},
 	}
 
-	var listGithubIssueOverview []models.GithubIssueCardSummary
+	var listGithubIssueOverview []GithubIssueCardSummary
 	for _, e := range githubIssueCardConfigs {
 		if !(e.OmitWithFlagShort && meta.Flags.Short) {
 			cardsOverview, err := reqGhCardsFromColumn(int64(e.CardId), meta.GitHubClient, meta.Env.GithubToken)
 			if err != nil {
 				return nil, err
 			}
-			listGithubIssueOverview = append(listGithubIssueOverview, models.GithubIssueCardSummary{
+			listGithubIssueOverview = append(listGithubIssueOverview, GithubIssueCardSummary{
 				CardsTitle:              e.CardsTitle,
 				ListGithubIssueOverview: groupByCards(cardsOverview),
 			})
@@ -76,13 +74,13 @@ func findResolvedCardsWithProjectId(client *github.Client, projectId int64) (int
 	return resolvedColumns[0].GetID(), err
 }
 
-func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([]*models.GhIssueOverview, error) {
+func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([]*GhIssueOverview, error) {
 	cards, _, err := client.Projects.ListProjectCards(context.Background(), cardsId, &github.ProjectCardListOptions{})
 	if err != nil {
 		fmt.Printf("error when querying cards %v", err)
 		return nil, err
 	}
-	issues := make([]*models.GhIssueOverview, 0)
+	issues := make([]*GhIssueOverview, 0)
 	for _, c := range cards {
 		if c.ContentURL != nil {
 			issueUrl := *c.ContentURL
@@ -91,7 +89,7 @@ func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([
 				return nil, err
 			}
 
-			overview := models.GhIssueOverview{
+			overview := GhIssueOverview{
 				Url:   issueDetail.HtmlUrl,
 				Id:    issueDetail.Number,
 				Title: strings.Replace(issueDetail.Title, "[Failing Test]", "", -1),
@@ -114,19 +112,19 @@ func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([
 	return issues, nil
 }
 
-func groupByCards(issues []*models.GhIssueOverview) map[string][]*models.GhIssueOverview {
-	result := make(map[string][]*models.GhIssueOverview)
+func groupByCards(issues []*GhIssueOverview) map[string][]*GhIssueOverview {
+	result := make(map[string][]*GhIssueOverview)
 	for _, issue := range issues {
 		_, ok := result[issue.Sig]
 		if !ok {
-			result[issue.Sig] = make([]*models.GhIssueOverview, 0)
+			result[issue.Sig] = make([]*GhIssueOverview, 0)
 		}
 		result[issue.Sig] = append(result[issue.Sig], issue)
 	}
 	return result
 }
 
-func requestGhIssueDetail(url string, authToken string) (*models.GhIssueDetail, error) {
+func requestGhIssueDetail(url string, authToken string) (*GhIssueDetail, error) {
 	// Create a Bearer string by appending string access token
 	var bearerHeader = "Bearer " + authToken
 
@@ -151,10 +149,35 @@ func requestGhIssueDetail(url string, authToken string) (*models.GhIssueDetail, 
 		fmt.Printf("%v", err)
 		return nil, err
 	}
-	var result models.GhIssueDetail
+	var result GhIssueDetail
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return nil, err
 	}
 	return &result, nil
+}
+
+type GhIssueOverview struct {
+	Url   string
+	Id    int64
+	Title string
+	Sig   string
+}
+
+type GhIssueDetail struct {
+	Number  int64          `json:"number"`
+	HtmlUrl string         `json:"html_url"`
+	Title   string         `json:"title"`
+	Labels  []github.Label `json:"labels,omitempty"`
+}
+
+type GithubIssueCardConfig struct {
+	CardsTitle        string
+	CardId            int
+	OmitWithFlagShort bool
+}
+
+type GithubIssueCardSummary struct {
+	CardsTitle              string
+	ListGithubIssueOverview map[string][]*GhIssueOverview
 }

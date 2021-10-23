@@ -1,26 +1,23 @@
-package report
+package ci_reporter
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"github.com/leonardpahlke/ci-signal-report/internal/config"
-	"github.com/leonardpahlke/ci-signal-report/internal/models"
 )
 
 // This function is used to accumulate a summary of testgrid
-func RequestTestgridOverview(meta config.Meta) ([]models.TestGridStatistics, error) {
+func RequestTestgridOverview(meta CiReporterMeta) ([]TestGridStatistics, error) {
 	// The report checks master-blocking and master-informing
-	requiredJobs := []models.TestgridJob{
+	requiredJobs := []TestgridJob{
 		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
 		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
 	}
 
 	// If a release version got specified add additional jobs to report
 	if meta.Env.ReleaseVersion != "" {
-		requiredJobsVersion := []models.TestgridJob{
+		requiredJobsVersion := []TestgridJob{
 			{OutputName: meta.Env.ReleaseVersion + "-blocking", UrlName: "sig-release-" + meta.Env.ReleaseVersion + "-blocking"},
 			{OutputName: meta.Env.ReleaseVersion + "-informing", UrlName: "sig-release-" + meta.Env.ReleaseVersion + "-informing"},
 		}
@@ -29,24 +26,24 @@ func RequestTestgridOverview(meta config.Meta) ([]models.TestGridStatistics, err
 		}
 	}
 
-	testgridStats := make([]models.TestGridStatistics, 0)
-	for _, kubeJob := range requiredJobs {
+	testgridStats := make([]TestGridStatistics, 0)
+	for _, job := range requiredJobs {
 		// Request Testgrid subpage summary data
-		jobs, err := requestTestgridSiteSummary(kubeJob)
+		jobs, err := requestTestgridSiteSummary(job)
 		if err != nil {
 			return nil, err
 		}
 		statistics := getStatistics(jobs)
-		statistics.Name = kubeJob.OutputName
+		statistics.Name = job.OutputName
 		testgridStats = append(testgridStats, statistics)
 	}
 	return testgridStats, nil
 }
 
 // This function is used to request job summary data from a testgrid subpage
-func requestTestgridSiteSummary(kubeJob models.TestgridJob) (models.TestgrudJobsOverview, error) {
+func requestTestgridSiteSummary(job TestgridJob) (TestgridJobsOverview, error) {
 	// This url points to testgrid/summary which returns a JSON document
-	url := fmt.Sprintf("https://testgrid.k8s.io/%s/summary", kubeJob.UrlName)
+	url := fmt.Sprintf("https://testgrid.k8s.io/%s/summary", job.UrlName)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -56,8 +53,8 @@ func requestTestgridSiteSummary(kubeJob models.TestgridJob) (models.TestgrudJobs
 	if err != nil {
 		return nil, err
 	}
-	// Unmarshal JSON from body into models.TestgrudJobsOverview struct
-	jobs := make(models.TestgrudJobsOverview)
+	// Unmarshal JSON from body into TestgridJobsOverview struct
+	jobs := make(TestgridJobsOverview)
 	err = json.Unmarshal(body, &jobs)
 	if err != nil {
 		return nil, err
@@ -66,8 +63,8 @@ func requestTestgridSiteSummary(kubeJob models.TestgridJob) (models.TestgrudJobs
 }
 
 // This function is used to count up the status from testgrid tests
-func getStatistics(jobs map[string]models.TestgridOverview) models.TestGridStatistics {
-	result := models.TestGridStatistics{}
+func getStatistics(jobs map[string]TestgridOverview) TestGridStatistics {
+	result := TestGridStatistics{}
 	for _, v := range jobs {
 		if v.OverallStatus == "PASSING" {
 			result.Passing++
@@ -81,4 +78,23 @@ func getStatistics(jobs map[string]models.TestgridOverview) models.TestGridStati
 		result.Total++
 	}
 	return result
+}
+
+type TestgridJob struct {
+	OutputName string
+	UrlName    string
+}
+
+type TestGridStatistics struct {
+	Name    string
+	Total   int
+	Passing int
+	Flaking int
+	Failing int
+	Stale   int
+}
+
+type TestgridJobsOverview = map[string]TestgridOverview
+type TestgridOverview struct {
+	OverallStatus string `json:"overall_status"`
 }

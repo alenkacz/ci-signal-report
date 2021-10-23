@@ -1,4 +1,4 @@
-package config
+package ci_reporter
 
 import (
 	"context"
@@ -19,13 +19,13 @@ type metaFlags struct {
 	Short bool
 }
 
-type Meta struct {
+type CiReporterMeta struct {
 	Env          metaEnv
 	Flags        metaFlags
 	GitHubClient *github.Client
 }
 
-func SetMeta() Meta {
+func SetMeta() CiReporterMeta {
 	// Flags
 	isFlagShortSet := flag.Bool("short", false, "a short report for mails and slack")
 	flag.Parse()
@@ -47,7 +47,7 @@ func SetMeta() Meta {
 	ghClient := github.NewClient(tc)
 
 	// Set meta data
-	return Meta{
+	return CiReporterMeta{
 		Env: metaEnv{
 			GithubToken:    githubApiToken,
 			ReleaseVersion: releaseVersion,

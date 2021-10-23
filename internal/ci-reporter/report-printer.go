@@ -1,13 +1,9 @@
-package transformer
+package ci_reporter
 
-import (
-	"fmt"
-
-	"github.com/leonardpahlke/ci-signal-report/internal/models"
-)
+import "fmt"
 
 // This function is used to print github cards to the console
-func PrintGitHubCards(shortReport bool, cardsAfterType []models.GithubIssueCardSummary) {
+func PrintGitHubCards(shortReport bool, cardsAfterType []GithubIssueCardSummary) {
 	for _, e := range cardsAfterType {
 		fmt.Println("\n----------\n" + e.CardsTitle)
 		for k, v := range e.ListGithubIssueOverview {
@@ -21,7 +17,7 @@ func PrintGitHubCards(shortReport bool, cardsAfterType []models.GithubIssueCardS
 }
 
 // This function is used to print testgrid data to the console
-func PrintTestGridOverview(testgridStats []models.TestGridStatistics) {
+func PrintTestGridOverview(testgridStats []TestGridStatistics) {
 	for _, stat := range testgridStats {
 		fmt.Printf("Failures in %s\n", stat.Name)
 		fmt.Printf("\t%d jobs total\n", stat.Total)
