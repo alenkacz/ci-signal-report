@@ -11,8 +11,8 @@ import (
 func RequestTestgridOverview(meta CiReporterMeta) ([]TestGridStatistics, error) {
 	// The report checks master-blocking and master-informing
 	requiredJobs := []TestgridJob{
-		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking"},
-		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing"},
+		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking", Emoji: MasterBlockingEmoji},
+		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing", Emoji: MasterInformingEmoji},
 	}
 
 	// If a release version got specified add additional jobs to report
@@ -35,6 +35,7 @@ func RequestTestgridOverview(meta CiReporterMeta) ([]TestGridStatistics, error) 
 		}
 		statistics := getStatistics(jobs)
 		statistics.Name = job.OutputName
+		statistics.Emoji = job.Emoji
 		testgridStats = append(testgridStats, statistics)
 	}
 	return testgridStats, nil
@@ -83,9 +84,11 @@ func getStatistics(jobs map[string]TestgridOverview) TestGridStatistics {
 type TestgridJob struct {
 	OutputName string
 	UrlName    string
+	Emoji      string
 }
 
 type TestGridStatistics struct {
+	Emoji   string
 	Name    string
 	Total   int
 	Passing int

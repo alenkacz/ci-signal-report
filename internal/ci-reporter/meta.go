@@ -3,20 +3,24 @@ package ci_reporter
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
 
 	"github.com/google/go-github/v34/github"
+	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/oauth2"
 )
 
+// Environment variables that can be set using the ci-reporter
 type metaEnv struct {
-	GithubToken    string
-	ReleaseVersion string
+	GithubToken    string `envconfig:"GITHUB_AUTH_TOKEN" required:"true"`
+	ReleaseVersion string `envconfig:"RELEASE_VERSION"`
 }
 
+// Flags that can be set using the ci-reporter
 type metaFlags struct {
-	Short bool
+	// shortens the report output (less details)
+	ShortOn bool
+	// prints emojis
+	EmojisOff bool
 }
 
 type CiReporterMeta struct {
@@ -27,33 +31,34 @@ type CiReporterMeta struct {
 
 func SetMeta() CiReporterMeta {
 	// Flags
+	// default: off
 	isFlagShortSet := flag.Bool("short", false, "a short report for mails and slack")
+
+	// default : on
+	isFlagEmojiOff := flag.Bool("emoji-off", false, "toggel if emojis should not be printed out")
 	flag.Parse()
 
-	// Environment vairables
-	githubApiToken := os.Getenv("GITHUB_AUTH_TOKEN")
-	releaseVersion := os.Getenv("RELEASE_VERSION")
-	if githubApiToken == "" {
-		fmt.Printf("Please provide GITHUB_AUTH_TOKEN env variable to be able to pull cards from the github board")
-		os.Exit(1)
+	var env metaEnv
+	err := envconfig.Process("", &env)
+	if err != nil {
+		// "Make sure to provide a GITHUB_AUTH_TOKEN, received an error during env decoding"
+		panic(err)
 	}
 
 	// Setup github client
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: githubApiToken},
+		&oauth2.Token{AccessToken: env.GithubToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	ghClient := github.NewClient(tc)
 
 	// Set meta data
 	return CiReporterMeta{
-		Env: metaEnv{
-			GithubToken:    githubApiToken,
-			ReleaseVersion: releaseVersion,
-		},
+		Env: env,
 		Flags: metaFlags{
-			Short: *isFlagShortSet,
+			ShortOn:   *isFlagShortSet,
+			EmojisOff: *isFlagEmojiOff,
 		},
 		GitHubClient: ghClient,
 	}

@@ -9,22 +9,17 @@ import (
 func main() {
 	meta := ci_reporter.SetMeta()
 
-	/* GitHub Report */
-	// 1. request github data
+	// GitHub Report
 	listGithubIssueOverview, err := ci_reporter.RequestGitHubCardsData(meta)
 	if err != nil {
 		fmt.Printf("Error RequestGitHubCardsData %v", err)
 	}
-	// 2. print github data
-	ci_reporter.PrintGitHubCards(meta.Flags.Short, listGithubIssueOverview)
+	ci_reporter.PrintGitHubCards(meta.Flags, listGithubIssueOverview)
 
-	/* TestGrid Report */
-	// 1. request testgrid data
+	// TestGrid Report
 	testgridOverview, err := ci_reporter.RequestTestgridOverview(meta)
 	if err != nil {
 		fmt.Printf("Error RequestTestgridOverview %v", err)
 	}
-
-	// 2. print testgrid data
-	ci_reporter.PrintTestGridOverview(testgridOverview)
+	ci_reporter.PrintTestGridOverview(meta.Flags, testgridOverview)
 }

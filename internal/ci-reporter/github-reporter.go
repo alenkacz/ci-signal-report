@@ -23,33 +23,38 @@ func RequestGitHubCardsData(meta CiReporterMeta) ([]GithubIssueCardSummary, erro
 			CardsTitle:        "New/Not Yet Started",
 			CardId:            GithubNewCardsId,
 			OmitWithFlagShort: false,
+			Emoji:             NotYetStartedEmoji,
 		},
 		{
 			CardsTitle:        "In flight",
 			CardId:            GithubUnderInvestigationCardsId,
 			OmitWithFlagShort: false,
+			Emoji:             InFlightEmoji,
 		},
 		{
 			CardsTitle:        "Observing",
 			CardId:            GithubObservingCardsId,
 			OmitWithFlagShort: true,
+			Emoji:             ObservingEmoji,
 		},
 		{
 			CardsTitle:        "Resolved",
 			CardId:            int(resolvedCardsId),
 			OmitWithFlagShort: true,
+			Emoji:             ResolvedEmoji,
 		},
 	}
 
 	var listGithubIssueOverview []GithubIssueCardSummary
 	for _, e := range githubIssueCardConfigs {
-		if !(e.OmitWithFlagShort && meta.Flags.Short) {
+		if !(e.OmitWithFlagShort && meta.Flags.ShortOn) {
 			cardsOverview, err := reqGhCardsFromColumn(int64(e.CardId), meta.GitHubClient, meta.Env.GithubToken)
 			if err != nil {
 				return nil, err
 			}
 			listGithubIssueOverview = append(listGithubIssueOverview, GithubIssueCardSummary{
 				CardsTitle:              e.CardsTitle,
+				Emoji:                   e.Emoji,
 				ListGithubIssueOverview: groupByCards(cardsOverview),
 			})
 		}
@@ -174,10 +179,12 @@ type GhIssueDetail struct {
 type GithubIssueCardConfig struct {
 	CardsTitle        string
 	CardId            int
+	Emoji             string
 	OmitWithFlagShort bool
 }
 
 type GithubIssueCardSummary struct {
 	CardsTitle              string
+	Emoji                   string
 	ListGithubIssueOverview map[string][]*GhIssueOverview
 }
