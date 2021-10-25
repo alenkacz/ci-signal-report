@@ -1,4 +1,4 @@
-package ci_reporter
+package cireporter
 
 import (
 	"context"
@@ -13,46 +13,47 @@ import (
 	"github.com/google/go-github/v34/github"
 )
 
-func RequestGitHubCardsData(meta CiReporterMeta) ([]GithubIssueCardSummary, error) {
-	resolvedCardsId, err := findResolvedCardsWithProjectId(meta.GitHubClient, GithubCiSignalBoardProjectId)
+// ReqGitHubData this function is used to get github report data
+func ReqGitHubData(meta Meta) ([]GithubSummary, error) {
+	resolvedCardsID, err := findResolvedCardsWithProjectID(meta.GitHubClient, githubCiSignalBoardProjectId)
 	if err != nil {
 		return nil, err
 	}
-	var githubIssueCardConfigs = []GithubIssueCardConfig{
+	var githubIssueCardConfigs = []githubIssueCardConfig{
 		{
 			CardsTitle:        "New/Not Yet Started",
-			CardId:            GithubNewCardsId,
+			CardID:            githubNewCardsId,
 			OmitWithFlagShort: false,
-			Emoji:             NotYetStartedEmoji,
+			Emoji:             notYetStartedEmoji,
 		},
 		{
 			CardsTitle:        "In flight",
-			CardId:            GithubUnderInvestigationCardsId,
+			CardID:            githubUnderInvestigationCardsId,
 			OmitWithFlagShort: false,
-			Emoji:             InFlightEmoji,
+			Emoji:             inFlightEmoji,
 		},
 		{
 			CardsTitle:        "Observing",
-			CardId:            GithubObservingCardsId,
+			CardID:            githubObservingCardsId,
 			OmitWithFlagShort: true,
-			Emoji:             ObservingEmoji,
+			Emoji:             observingEmoji,
 		},
 		{
 			CardsTitle:        "Resolved",
-			CardId:            int(resolvedCardsId),
+			CardID:            int(resolvedCardsID),
 			OmitWithFlagShort: true,
-			Emoji:             ResolvedEmoji,
+			Emoji:             resolvedEmoji,
 		},
 	}
 
-	var listGithubIssueOverview []GithubIssueCardSummary
+	var listGithubIssueOverview []GithubSummary
 	for _, e := range githubIssueCardConfigs {
 		if !(e.OmitWithFlagShort && meta.Flags.ShortOn) {
-			cardsOverview, err := reqGhCardsFromColumn(int64(e.CardId), meta.GitHubClient, meta.Env.GithubToken)
+			cardsOverview, err := reqGhCardsFromColumn(int64(e.CardID), meta.GitHubClient, meta.Env.GithubToken)
 			if err != nil {
 				return nil, err
 			}
-			listGithubIssueOverview = append(listGithubIssueOverview, GithubIssueCardSummary{
+			listGithubIssueOverview = append(listGithubIssueOverview, GithubSummary{
 				CardsTitle:              e.CardsTitle,
 				Emoji:                   e.Emoji,
 				ListGithubIssueOverview: groupByCards(cardsOverview),
@@ -62,8 +63,8 @@ func RequestGitHubCardsData(meta CiReporterMeta) ([]GithubIssueCardSummary, erro
 	return listGithubIssueOverview, nil
 }
 
-func findResolvedCardsWithProjectId(client *github.Client, projectId int64) (int64, error) {
-	cards, _, err := client.Projects.ListProjectColumns(context.Background(), projectId, &github.ListOptions{})
+func findResolvedCardsWithProjectID(client *github.Client, projectID int64) (int64, error) {
+	cards, _, err := client.Projects.ListProjectColumns(context.Background(), projectID, &github.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
@@ -79,8 +80,8 @@ func findResolvedCardsWithProjectId(client *github.Client, projectId int64) (int
 	return resolvedColumns[0].GetID(), err
 }
 
-func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([]*GhIssueOverview, error) {
-	cards, _, err := client.Projects.ListProjectCards(context.Background(), cardsId, &github.ProjectCardListOptions{})
+func reqGhCardsFromColumn(cardsID int64, client *github.Client, token string) ([]*GhIssueOverview, error) {
+	cards, _, err := client.Projects.ListProjectCards(context.Background(), cardsID, &github.ProjectCardListOptions{})
 	if err != nil {
 		fmt.Printf("error when querying cards %v", err)
 		return nil, err
@@ -88,15 +89,15 @@ func reqGhCardsFromColumn(cardsId int64, client *github.Client, token string) ([
 	issues := make([]*GhIssueOverview, 0)
 	for _, c := range cards {
 		if c.ContentURL != nil {
-			issueUrl := *c.ContentURL
-			issueDetail, err := requestGhIssueDetail(issueUrl, token)
+			issueURL := *c.ContentURL
+			issueDetail, err := requestGhIssueDetail(issueURL, token)
 			if err != nil {
 				return nil, err
 			}
 
 			overview := GhIssueOverview{
-				Url:   issueDetail.HtmlUrl,
-				Id:    issueDetail.Number,
+				URL:   issueDetail.HTMLURL,
+				ID:    issueDetail.Number,
 				Title: strings.Replace(issueDetail.Title, "[Failing Test]", "", -1),
 			}
 			for _, v := range issueDetail.Labels {
@@ -129,7 +130,7 @@ func groupByCards(issues []*GhIssueOverview) map[string][]*GhIssueOverview {
 	return result
 }
 
-func requestGhIssueDetail(url string, authToken string) (*GhIssueDetail, error) {
+func requestGhIssueDetail(url string, authToken string) (*ghIssueDetail, error) {
 	// Create a Bearer string by appending string access token
 	var bearerHeader = "Bearer " + authToken
 
@@ -154,7 +155,7 @@ func requestGhIssueDetail(url string, authToken string) (*GhIssueDetail, error) 
 		fmt.Printf("%v", err)
 		return nil, err
 	}
-	var result GhIssueDetail
+	var result ghIssueDetail
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return nil, err
@@ -162,28 +163,30 @@ func requestGhIssueDetail(url string, authToken string) (*GhIssueDetail, error) 
 	return &result, nil
 }
 
+// GhIssueOverview information about a specific github issue
 type GhIssueOverview struct {
-	Url   string
-	Id    int64
+	URL   string
+	ID    int64
 	Title string
 	Sig   string
 }
 
-type GhIssueDetail struct {
+type ghIssueDetail struct {
 	Number  int64          `json:"number"`
-	HtmlUrl string         `json:"html_url"`
+	HTMLURL string         `json:"html_url"`
 	Title   string         `json:"title"`
 	Labels  []github.Label `json:"labels,omitempty"`
 }
 
-type GithubIssueCardConfig struct {
+type githubIssueCardConfig struct {
 	CardsTitle        string
-	CardId            int
+	CardID            int
 	Emoji             string
 	OmitWithFlagShort bool
 }
 
-type GithubIssueCardSummary struct {
+// GithubSummary multiple GhIssueOverview's
+type GithubSummary struct {
 	CardsTitle              string
 	Emoji                   string
 	ListGithubIssueOverview map[string][]*GhIssueOverview

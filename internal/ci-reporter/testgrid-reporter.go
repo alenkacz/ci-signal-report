@@ -1,4 +1,4 @@
-package ci_reporter
+package cireporter
 
 import (
 	"encoding/json"
@@ -7,19 +7,19 @@ import (
 	"net/http"
 )
 
-// This function is used to accumulate a summary of testgrid
-func RequestTestgridOverview(meta CiReporterMeta) ([]TestGridStatistics, error) {
+// RequestTestgridOverview this function is used to accumulate a summary of testgrid
+func RequestTestgridOverview(meta Meta) ([]TestGridStatistics, error) {
 	// The report checks master-blocking and master-informing
-	requiredJobs := []TestgridJob{
-		{OutputName: "Master-Blocking", UrlName: "sig-release-master-blocking", Emoji: MasterBlockingEmoji},
-		{OutputName: "Master-Informing", UrlName: "sig-release-master-informing", Emoji: MasterInformingEmoji},
+	requiredJobs := []testgridJob{
+		{OutputName: "Master-Blocking", URLName: "sig-release-master-blocking", Emoji: masterBlockingEmoji},
+		{OutputName: "Master-Informing", URLName: "sig-release-master-informing", Emoji: masterInformingEmoji},
 	}
 
 	// If a release version got specified add additional jobs to report
 	if meta.Env.ReleaseVersion != "" {
-		requiredJobsVersion := []TestgridJob{
-			{OutputName: meta.Env.ReleaseVersion + "-blocking", UrlName: "sig-release-" + meta.Env.ReleaseVersion + "-blocking"},
-			{OutputName: meta.Env.ReleaseVersion + "-informing", UrlName: "sig-release-" + meta.Env.ReleaseVersion + "-informing"},
+		requiredJobsVersion := []testgridJob{
+			{OutputName: meta.Env.ReleaseVersion + "-blocking", URLName: "sig-release-" + meta.Env.ReleaseVersion + "-blocking"},
+			{OutputName: meta.Env.ReleaseVersion + "-informing", URLName: "sig-release-" + meta.Env.ReleaseVersion + "-informing"},
 		}
 		for i := range requiredJobsVersion {
 			requiredJobs = append(requiredJobs, requiredJobsVersion[i])
@@ -42,9 +42,9 @@ func RequestTestgridOverview(meta CiReporterMeta) ([]TestGridStatistics, error) 
 }
 
 // This function is used to request job summary data from a testgrid subpage
-func requestTestgridSiteSummary(job TestgridJob) (TestgridJobsOverview, error) {
+func requestTestgridSiteSummary(job testgridJob) (testgridJobsOverview, error) {
 	// This url points to testgrid/summary which returns a JSON document
-	url := fmt.Sprintf("https://testgrid.k8s.io/%s/summary", job.UrlName)
+	url := fmt.Sprintf("https://testgrid.k8s.io/%s/summary", job.URLName)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func requestTestgridSiteSummary(job TestgridJob) (TestgridJobsOverview, error) {
 		return nil, err
 	}
 	// Unmarshal JSON from body into TestgridJobsOverview struct
-	jobs := make(TestgridJobsOverview)
+	jobs := make(testgridJobsOverview)
 	err = json.Unmarshal(body, &jobs)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func requestTestgridSiteSummary(job TestgridJob) (TestgridJobsOverview, error) {
 }
 
 // This function is used to count up the status from testgrid tests
-func getStatistics(jobs map[string]TestgridOverview) TestGridStatistics {
+func getStatistics(jobs map[string]testgridOverview) TestGridStatistics {
 	result := TestGridStatistics{}
 	for _, v := range jobs {
 		if v.OverallStatus == "PASSING" {
@@ -81,12 +81,13 @@ func getStatistics(jobs map[string]TestgridOverview) TestGridStatistics {
 	return result
 }
 
-type TestgridJob struct {
+type testgridJob struct {
 	OutputName string
-	UrlName    string
+	URLName    string
 	Emoji      string
 }
 
+// TestGridStatistics information as summary about a testgrid area (like master-blocking)
 type TestGridStatistics struct {
 	Emoji   string
 	Name    string
@@ -97,7 +98,7 @@ type TestGridStatistics struct {
 	Stale   int
 }
 
-type TestgridJobsOverview = map[string]TestgridOverview
-type TestgridOverview struct {
+type testgridJobsOverview = map[string]testgridOverview
+type testgridOverview struct {
 	OverallStatus string `json:"overall_status"`
 }

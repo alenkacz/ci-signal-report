@@ -1,4 +1,4 @@
-package ci_reporter
+package cireporter
 
 import (
 	"context"
@@ -23,13 +23,15 @@ type metaFlags struct {
 	EmojisOff bool
 }
 
-type CiReporterMeta struct {
+// Meta meta struct to use ci-reporter functions
+type Meta struct {
 	Env          metaEnv
 	Flags        metaFlags
 	GitHubClient *github.Client
 }
 
-func SetMeta() CiReporterMeta {
+// SetMeta this function is used to set meta information that is being needed to generate ci-signal-report
+func SetMeta() Meta {
 	// Flags
 	// default: off
 	isFlagShortSet := flag.Bool("short", false, "a short report for mails and slack")
@@ -54,7 +56,7 @@ func SetMeta() CiReporterMeta {
 	ghClient := github.NewClient(tc)
 
 	// Set meta data
-	return CiReporterMeta{
+	return Meta{
 		Env: env,
 		Flags: metaFlags{
 			ShortOn:   *isFlagShortSet,

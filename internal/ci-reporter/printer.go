@@ -1,12 +1,12 @@
-package ci_reporter
+package cireporter
 
 import (
 	"fmt"
 	"strings"
 )
 
-// This function is used to print github cards to the console
-func PrintGitHubCards(flags metaFlags, cardsAfterType []GithubIssueCardSummary) {
+// PrintGitHubCards this function is used to print github cards to the console
+func PrintGitHubCards(flags metaFlags, cardsAfterType []GithubSummary) {
 	for _, e := range cardsAfterType {
 		headerLine := fmt.Sprintf("\n\n%s %s", e.Emoji, strings.ToUpper(e.CardsTitle))
 		if flags.EmojisOff {
@@ -16,14 +16,14 @@ func PrintGitHubCards(flags metaFlags, cardsAfterType []GithubIssueCardSummary) 
 		for k, v := range e.ListGithubIssueOverview {
 			fmt.Printf("SIG %s\n", k)
 			for _, i := range v {
-				fmt.Printf("- #%d %s %s\n", i.Id, i.Url, i.Title)
+				fmt.Printf("- #%d %s %s\n", i.ID, i.URL, i.Title)
 			}
 			fmt.Println()
 		}
 	}
 }
 
-// This function is used to print testgrid data to the console
+// PrintTestGridOverview this function is used to print testgrid data to the console
 func PrintTestGridOverview(flags metaFlags, testgridStats []TestGridStatistics) {
 	for _, stat := range testgridStats {
 		headerLine := fmt.Sprintf("%s Tests in %s\n", stat.Emoji, stat.Name)
