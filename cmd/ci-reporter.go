@@ -10,7 +10,7 @@ func main() {
 	meta := ci_reporter.SetMeta()
 
 	// GitHub Report
-	listGithubIssueOverview, err := ci_reporter.RequestGitHubCardsData(meta)
+	listGithubIssueOverview, err := ci_reporter.ReqGitHubData(meta)
 	if err != nil {
 		fmt.Printf("Error RequestGitHubCardsData %v", err)
 	}

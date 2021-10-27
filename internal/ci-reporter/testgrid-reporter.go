@@ -18,8 +18,8 @@ func RequestTestgridOverview(meta Meta) ([]TestGridStatistics, error) {
 	// If a release version got specified add additional jobs to report
 	if meta.Env.ReleaseVersion != "" {
 		requiredJobsVersion := []testgridJob{
-			{OutputName: meta.Env.ReleaseVersion + "-blocking", URLName: "sig-release-" + meta.Env.ReleaseVersion + "-blocking"},
-			{OutputName: meta.Env.ReleaseVersion + "-informing", URLName: "sig-release-" + meta.Env.ReleaseVersion + "-informing"},
+			{OutputName: fmt.Sprintf("%s-blocking", meta.Env.ReleaseVersion), URLName: fmt.Sprintf("sig-release-%s-blocking", meta.Env.ReleaseVersion), Emoji: masterBlockingEmoji},
+			{OutputName: fmt.Sprintf("%s-informing", meta.Env.ReleaseVersion), URLName: fmt.Sprintf("sig-release-%s-informing", meta.Env.ReleaseVersion), Emoji: masterInformingEmoji},
 		}
 		for i := range requiredJobsVersion {
 			requiredJobs = append(requiredJobs, requiredJobsVersion[i])

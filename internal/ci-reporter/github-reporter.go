@@ -15,26 +15,26 @@ import (
 
 // ReqGitHubData this function is used to get github report data
 func ReqGitHubData(meta Meta) ([]GithubSummary, error) {
-	resolvedCardsID, err := findResolvedCardsWithProjectID(meta.GitHubClient, githubCiSignalBoardProjectId)
+	resolvedCardsID, err := findResolvedCardsWithProjectID(meta.GitHubClient, githubCiSignalBoardProjectID)
 	if err != nil {
 		return nil, err
 	}
 	var githubIssueCardConfigs = []githubIssueCardConfig{
 		{
 			CardsTitle:        "New/Not Yet Started",
-			CardID:            githubNewCardsId,
+			CardID:            githubNewCardsID,
 			OmitWithFlagShort: false,
 			Emoji:             notYetStartedEmoji,
 		},
 		{
 			CardsTitle:        "In flight",
-			CardID:            githubUnderInvestigationCardsId,
+			CardID:            githubUnderInvestigationCardsID,
 			OmitWithFlagShort: false,
 			Emoji:             inFlightEmoji,
 		},
 		{
 			CardsTitle:        "Observing",
-			CardID:            githubObservingCardsId,
+			CardID:            githubObservingCardsID,
 			OmitWithFlagShort: true,
 			Emoji:             observingEmoji,
 		},
