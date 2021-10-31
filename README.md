@@ -20,17 +20,13 @@ cd <folder>
 GITHUB_AUTH_TOKEN=xxx go run main.go
 ```
 
-### Other version statistics
+### Flags
 
-By adding `RELEASE_VERSION=xxx` where the XXX can be like `1.23`, the report statistics get extended for the chosen version.
+- Short report: `-short` This reduces the report to `New/Not Yet Started` and `In Flight` issues.
+- Print without emojis: `-emoji-off`
+- Specific Release version: `-v XXX` where the XXX can be like `1.22`, the report statistics get extended for the chosen version.
 
-```bash
-GITHUB_AUTH_TOKEN=xxx RELEASE_VERSION=xxx go run ./cmd/ci-reporter.go
-```
-
-### Short report
-
-You can also output a short version of the report with the flag `-short`. This reduces the report to `New/Not Yet Started` and `In Flight` issues.
+Example
 
 ```bash
 GITHUB_AUTH_TOKEN=xxx go run ./cmd/ci-reporter.go -short
@@ -51,7 +47,7 @@ curl \
 ## Example output
 
 ```bash
-GITHUB_AUTH_TOKEN=XYZXYZXYZXYZ go run ./cmd/ci-reporter.go -short
+GITHUB_AUTH_TOKEN=XXX go run ./cmd/ci-reporter.go -short
 
 ----------
 🤔 New/Not Yet StartedSIG Cloud-Provider
@@ -93,5 +89,3 @@ SIG Release
 	0 are stale
 
 ```
-
-Emojis can be turned off by adding the flag `-emoji-off`

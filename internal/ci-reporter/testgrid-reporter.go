@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cireporter
 
 import (
@@ -16,10 +32,10 @@ func RequestTestgridOverview(meta Meta) ([]TestGridStatistics, error) {
 	}
 
 	// If a release version got specified add additional jobs to report
-	if meta.Env.ReleaseVersion != "" {
+	if meta.Flags.ReleaseVersion != "" {
 		requiredJobsVersion := []testgridJob{
-			{OutputName: fmt.Sprintf("%s-blocking", meta.Env.ReleaseVersion), URLName: fmt.Sprintf("sig-release-%s-blocking", meta.Env.ReleaseVersion), Emoji: masterBlockingEmoji},
-			{OutputName: fmt.Sprintf("%s-informing", meta.Env.ReleaseVersion), URLName: fmt.Sprintf("sig-release-%s-informing", meta.Env.ReleaseVersion), Emoji: masterInformingEmoji},
+			{OutputName: fmt.Sprintf("%s-blocking", meta.Flags.ReleaseVersion), URLName: fmt.Sprintf("sig-release-%s-blocking", meta.Flags.ReleaseVersion), Emoji: masterBlockingEmoji},
+			{OutputName: fmt.Sprintf("%s-informing", meta.Flags.ReleaseVersion), URLName: fmt.Sprintf("sig-release-%s-informing", meta.Flags.ReleaseVersion), Emoji: masterInformingEmoji},
 		}
 		for i := range requiredJobsVersion {
 			requiredJobs = append(requiredJobs, requiredJobsVersion[i])
