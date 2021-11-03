@@ -15,7 +15,7 @@ It needs a GitHub token to be able to query the project board for CI signal. For
 ## Run the report
 
 ```bash
-git clone git@github.com:leonardpahlke/ci-signal-report.git <folder>
+git clone git@github.com/alenkacz/ci-signal-report.git <folder>
 cd <folder>
 GITHUB_AUTH_TOKEN=xxx go run main.go
 ```
@@ -24,7 +24,8 @@ GITHUB_AUTH_TOKEN=xxx go run main.go
 
 - Short report: `-short` This reduces the report to `New/Not Yet Started` and `In Flight` issues.
 - Print without emojis: `-emoji-off`
-- Specific Release version: `-v XXX` where the XXX can be like `1.22`, the report statistics get extended for the chosen version.
+- Specific Release version: `-v XXX` where the XXX can be like `1.22`, the report statistics get extended for the chosen version. To specify multiple version use `-v "1.22, 1.21"`
+- Json output `-json`
 
 Example
 

@@ -17,25 +17,30 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
+	"sync"
 
-	ci_reporter "github.com/leonardpahlke/ci-signal-report/internal/ci-reporter"
+	ci_reporter "github.com/leonardpahlke/ci-signal-report/pkg/ci-reporter"
 )
 
 func main() {
 	meta := ci_reporter.SetMeta()
+	cireporters := []ci_reporter.CIReport{&ci_reporter.GithubReport{}, &ci_reporter.TestgridReport{}}
 
-	// GitHub Report
-	listGithubIssueOverview, err := ci_reporter.ReqGitHubData(meta)
-	if err != nil {
-		fmt.Printf("Error RequestGitHubCardsData %v", err)
+	// request report data
+	report := ci_reporter.Report{}
+	var wg sync.WaitGroup
+	for _, r := range cireporters {
+		wg.Add(1)
+		report = append(report, r.RequestData(meta, &wg))
 	}
-	ci_reporter.PrintGitHubCards(meta.Flags, listGithubIssueOverview)
+	wg.Wait()
 
-	// TestGrid Report
-	testgridOverview, err := ci_reporter.RequestTestgridOverview(meta)
-	if err != nil {
-		fmt.Printf("Error RequestTestgridOverview %v", err)
+	// print report data
+	if meta.Flags.JsonOut {
+		report.PrintJson()
+	} else {
+		for _, r := range cireporters {
+			r.Print(meta, r.GetData())
+		}
 	}
-	ci_reporter.PrintTestGridOverview(meta.Flags, testgridOverview)
 }
