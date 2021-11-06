@@ -160,7 +160,7 @@ func assembleCardRequests(meta Meta, cardsID int64) chan ghIssueOverview {
 
 	cards, _, err := meta.GitHubClient.Projects.ListProjectCards(context.Background(), cardsID, &github.ProjectCardListOptions{})
 	if err != nil {
-		log.Printf("error when querying cards %v", err)
+		log.Fatalf("Error when querying cards.\n[ERROR] %v", err)
 	}
 
 	go func() {
@@ -172,7 +172,7 @@ func assembleCardRequests(meta Meta, cardsID int64) chan ghIssueOverview {
 				if card.ContentURL != nil {
 					issueDetail, err := requestGhIssueDetail(*card.ContentURL, token)
 					if err != nil {
-						log.Printf("Error on requesting github card information.\n[ERROR] %v", err)
+						log.Fatalf("Error on requesting github card information.\n[ERROR] %v", err)
 					}
 
 					overview := ghIssueOverview{
@@ -230,7 +230,7 @@ func requestGhIssueDetail(url string, authToken string) (ghIssueDetail, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error on response.\n[ERROR] -", err)
+		log.Fatalf("Error on response.\n[ERROR] %v", err)
 	}
 	defer resp.Body.Close()
 

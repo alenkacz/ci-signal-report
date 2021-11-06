@@ -43,8 +43,8 @@ type metaFlags struct {
 	EmojisOff bool
 	// specifies a specific release version that should be included in the report like "1.22" or "1.22, 1.21"
 	ReleaseVersion []string
-	// JsonOut specifies if the output should be in json format
-	JsonOut bool
+	// JSONOut specifies if the output should be in json format
+	JSONOut bool
 	// Specify a report (if this is specified only one report will be printed e.g. SpecificReport: 'github' -> github report)
 	SpecificReport string
 }
@@ -83,17 +83,18 @@ func SetMeta() Meta {
 	releaseVersion := flag.String("v", "", "Adds specific K8s release version to the report (like -v '1.22, 1.21' or -v 1.22)")
 
 	// -emoji-off - default : off
-	isJsonOut := flag.Bool("json", false, "Report gets printed out in json format")
+	isJSONOut := flag.Bool("json", false, "Report gets printed out in json format")
 
 	// -emoji-off - default : off
 	specificReport := flag.String("report", "", fmt.Sprintf("Specify report, options: '%s', '%s'", githubReport, testgridReport))
+  
 	flag.Parse()
 
 	var env metaEnv
 	err := envconfig.Process("", &env)
 	if err != nil {
 		// "Make sure to provide a GITHUB_AUTH_TOKEN, received an error during env decoding"
-		panic(err)
+		log.Fatalf("Error processing flags.\n[ERROR] %v", err)
 	}
 
 	// Setup github client
@@ -111,7 +112,7 @@ func SetMeta() Meta {
 			ShortOn:        *isFlagShortSet,
 			EmojisOff:      *isFlagEmojiOff,
 			ReleaseVersion: splitReleaseVersionInput(*releaseVersion),
-			JsonOut:        *isJsonOut,
+			JSONOut:        *isJSONOut,
 			SpecificReport: *specificReport,
 		},
 		GitHubClient:       ghClient,
@@ -135,11 +136,7 @@ func (m Meta) GetReporters() []CIReport {
 
 // This function is used to split release version input ("1.22, 1.21" => ["1.22", "1.21"])
 func splitReleaseVersionInput(input string) []string {
-	re, err := regexp.Compile(`\d.\d\d`)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	re := regexp.MustCompile(`\d.\d\d`)
 	releaseVersion := []string{}
 
 	for _, e := range strings.Split(input, ",") {

@@ -43,10 +43,24 @@ const (
 	notYetStartedEmoji   = "\U0001F914"
 	observingEmoji       = "\U0001F440"
 	resolvedEmoji        = "\U0001F389"
-	masterBlockingEmoji  = "\U000026D4"
+	masterBlockingEmoji  = "\U0001F525"
 	masterInformingEmoji = "\U0001F4A1"
+	statusFailingEmoji   = "\U0001F534"
+	statusFlakyEmoji     = "\U0001F535"
+	statusNewTestEmoji   = "\U00002728"
 )
 
+// Severity used to rank report records
+type Severity int
+
+// HighSeverity, MediumSeverity, LightSeverity used to rank report records from 0...3
+const (
+	HighSeverity   Severity = 3
+	MediumSeverity Severity = 2
+	LightSeverity  Severity = 1
+)
+
+// CIReport this interface to implement Reporters
 type CIReport interface {
 	RequestData(meta Meta, wg *sync.WaitGroup) ReportData
 	Print(meta Meta, reportData ReportData)
@@ -66,8 +80,8 @@ func (r *Report) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-// PrintJson pretty print json to console
-func (r *Report) PrintJson() {
+// PrintJSON pretty print json to console
+func (r *Report) PrintJSON() {
 	b, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		log.Fatalf("Could not marshal Report %v", err)
@@ -78,30 +92,36 @@ func (r *Report) PrintJson() {
 // Report wraps multiple report data objects
 type Report []ReportData
 
-// ReportData
+// ReportData that contains multiple data fields
 type ReportData struct {
 	Data []ReportDataField `json:"data"`
 	// Name like 'github' or 'testgrid'
 	Name string `json:"name"`
 }
 
-// ReportDataField
+// ReportDataField one field of a report that contains multiple records
 type ReportDataField struct {
 	Emoji   string             `json:"emoji"`
 	Title   string             `json:"title"`
 	Records []ReportDataRecord `json:"records"`
 }
 
-// ReportDataRecord
+// ReportDataRecord that contain specifc information about a testgrid job or about a github issue (flexible)
 type ReportDataRecord struct {
-	Total   int `json:"total"`
-	Passing int `json:"passing"`
-	Flaking int `json:"flaking"`
-	Failing int `json:"failing"`
-	Stale   int `json:"stale"`
-
-	URL   string `json:"url"`
-	ID    int64  `json:"id"`
+	// record url
+	URL string `json:"url"`
+	// record identifier
+	ID int64 `json:"id"`
+	// record title
 	Title string `json:"title"`
-	Sig   string `json:"sig"`
+	// k8s sig reference
+	Sig string `json:"sig"`
+	// collection of additional information
+	Notes []string `json:"notes"`
+	// record status
+	Status string `json:"status"`
+	// can be set to show importance
+	Severity Severity `json:"severity"`
+	// can be set to highlight the record (with an emoji for example)
+	Highlight string `json:"highlight"`
 }
