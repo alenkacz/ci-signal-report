@@ -68,7 +68,7 @@ func (r *TestgridReport) Print(meta Meta, reportData ReportData) {
 				}
 				fmt.Print("\n")
 				if !meta.Flags.ShortOn {
-					fmt.Println("Job details:")
+					fmt.Print("\nFAILING & FLAKY JOBS:\n")
 				}
 			} else if stat.ID == testgridReportDetails {
 				if meta.Flags.EmojisOff {
@@ -200,8 +200,6 @@ func getDetails(jobName string, jobData testgridValue, jobBaseURL string, emojis
 
 		result.Notes = append(result.Notes, fmt.Sprintf("Sig's involved %v", sigs))
 		result.Notes = append(result.Notes, fmt.Sprintf("Currently %d test are failing", len(jobData.Tests)))
-
-		// result.Notes = append(result.Notes, fmt.Sprintf("%d/%d tests passed on the last run, %d/%d are new tests that have never passed yet", numberOfPassingTestsAfterFailure, amountOfFailingTests, numberOfNewTestsThatNeverPassedYet, amountOfFailingTests))
 	}
 
 	const (
@@ -234,7 +232,7 @@ func getDetails(jobName string, jobData testgridValue, jobBaseURL string, emojis
 	severity := Severity(0)
 	if testgridRegexRecentRunsFloat <= newTestThreshhold {
 		severity = LightSeverity
-		highlightEmoji = statusNewTestEmoji
+		highlightEmoji = statusNewEmoji
 	} else {
 		if recentSuccessRate <= thresholdWarning {
 			severity = HighSeverity

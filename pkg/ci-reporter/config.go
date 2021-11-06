@@ -87,7 +87,7 @@ func SetMeta() Meta {
 
 	// -emoji-off - default : off
 	specificReport := flag.String("report", "", fmt.Sprintf("Specify report, options: '%s', '%s'", githubReport, testgridReport))
-  
+
 	flag.Parse()
 
 	var env metaEnv
@@ -142,7 +142,6 @@ func splitReleaseVersionInput(input string) []string {
 	for _, e := range strings.Split(input, ",") {
 		if e != "" {
 			trimStr := strings.TrimSpace(e)
-			fmt.Println(trimStr)
 			found := re.MatchString(trimStr)
 
 			if found {

@@ -17,17 +17,15 @@ limitations under the License.
 package cireporter
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"sort"
+	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/google/go-github/v34/github"
+	"time"
 )
 
 // GithubReport used to implement RequestData & Print for github report data
@@ -37,72 +35,54 @@ type GithubReport struct {
 
 // RequestData this function is used to get github report data
 func (r *GithubReport) RequestData(meta Meta, wg *sync.WaitGroup) ReportData {
-	resolvedCardsID, err := findCardsID(meta.GitHubClient, githubCiSignalBoardProjectID, "Resolved")
-	if err != nil {
-		log.Fatalf("Could not find github card %v", err)
-		return ReportData{}
-	}
-	var githubIssueCardConfigs = []githubIssueCardConfig{
+	// labels=kind/failing-test&since=2021-09-01&sort=updated&per_page=100&page=1
+	requestCfg := []GithubIssueRequest{
 		{
-			CardsTitle:        "New/Not Yet Started",
-			CardID:            newCardsID,
-			OmitWithFlagShort: false,
-			Emoji:             notYetStartedEmoji,
+			Owner:     "kubernetes",
+			Repo:      "kubernetes",
+			Params:    GithubIssueRequestParameters{IssueReqParamLabels: "kind/failing-test", IssueReqParamSince: "2021-09-01", IssueReqParamSort: "updated", IssueReqParamPerpage: "20"},
+			AuthToken: meta.Env.GithubToken,
 		},
 		{
-			CardsTitle:        "In flight",
-			CardID:            underInvestigationCardsID,
-			OmitWithFlagShort: false,
-			Emoji:             inFlightEmoji,
-		},
-		{
-			CardsTitle:        "Observing",
-			CardID:            observingCardsID,
-			OmitWithFlagShort: true,
-			Emoji:             observingEmoji,
-		},
-		{
-			CardsTitle:        "Resolved",
-			CardID:            int(resolvedCardsID),
-			OmitWithFlagShort: true,
-			Emoji:             resolvedEmoji,
+			Owner:     "kubernetes",
+			Repo:      "kubernetes",
+			Params:    GithubIssueRequestParameters{IssueReqParamLabels: "kind/flake", IssueReqParamSince: "2021-09-01", IssueReqParamSort: "updated", IssueReqParamPerpage: "20"},
+			AuthToken: meta.Env.GithubToken,
 		},
 	}
-
+	// request github issue data
+	allReqGithubIssues := GithubIssuesAfterID{}
+	var internalWg sync.WaitGroup
+	for _, cfg := range requestCfg {
+		internalWg.Add(1)
+		go func(cfg GithubIssueRequest) {
+			githubIssues := GetGithubIssues(cfg)
+			for k, v := range githubIssues {
+				allReqGithubIssues[k] = v
+			}
+			internalWg.Done()
+		}(cfg)
+	}
+	internalWg.Wait()
 	// DataPostProcessing collects data requested via assembleGithubRequests/2 and returns ReportData
-	return meta.DataPostProcessing(r, githubReport, assembleGithubRequests(meta, githubIssueCardConfigs), wg)
+	return meta.DataPostProcessing(r, githubReport, transformIntoReportData(meta, allReqGithubIssues), wg)
 }
 
 // Print extends GithubReport and prints report data to the console
 func (r GithubReport) Print(meta Meta, reportData ReportData) {
-	// Print regular out
+	fmt.Print("\n\n")
 	for _, data := range reportData.Data {
-		// Prepare header
-		headerLine := fmt.Sprintf("\n\n%s %s", data.Emoji, strings.ToUpper(data.Title))
-		if meta.Flags.EmojisOff {
-			headerLine = fmt.Sprintf("\n\n%s", strings.ToUpper(data.Title))
-		}
-		fmt.Println(headerLine)
-
-		// sort report data after SIG
-		dataSortedAfterSigs := make(map[string][]ghIssueOverview)
-		for _, v := range data.Records {
-			dataSortedAfterSigs[v.Sig] = append(dataSortedAfterSigs[v.Sig], ghIssueOverview{
-				URL:   v.URL,
-				ID:    v.ID,
-				Title: v.Title,
-			})
-		}
-
-		// print sorted report data
-		for k, v := range dataSortedAfterSigs {
-			fmt.Printf("SIG %s\n", k)
-			for _, i := range v {
-				fmt.Printf("- #%d %s %s\n", i.ID, i.URL, i.Title)
+		for _, records := range data.Records {
+			fmt.Printf("#%d %s %s\n", records.ID, records.Title, records.Sig)
+			if !meta.Flags.ShortOn {
+				fmt.Printf("- %s\n", records.URL)
 			}
-			fmt.Println()
+			for _, note := range records.Notes {
+				fmt.Printf("- %s\n", note)
+			}
 		}
 	}
+	fmt.Println()
 }
 
 // PutData extends GithubReport and stores the data at runtime to the struct val ReportData
@@ -116,157 +96,239 @@ func (r GithubReport) GetData() ReportData {
 }
 
 // run all github requests to assemble data
-func assembleGithubRequests(meta Meta, githubIssueCardConfigs []githubIssueCardConfig) chan ReportDataField {
+func transformIntoReportData(meta Meta, issues GithubIssuesAfterID) chan ReportDataField {
 	c := make(chan ReportDataField)
+	sigRegex := regexp.MustCompile(`sig/[a-zA-Z]+`)
 	go func() {
 		defer close(c)
 		var wg sync.WaitGroup
-		for _, cardCfg := range githubIssueCardConfigs {
+		for _, issue := range issues {
 			wg.Add(1)
-			go sortDataIntoDataRecord(meta, c, &wg, cardCfg)
-		}
-		wg.Wait()
-	}()
-	return c
-}
-
-func sortDataIntoDataRecord(meta Meta, c chan ReportDataField, wg *sync.WaitGroup, cardCfg githubIssueCardConfig) {
-	if !(cardCfg.OmitWithFlagShort && meta.Flags.ShortOn) {
-		reportDataRecord := []ReportDataRecord{}
-		// request github data
-		for issue := range assembleCardRequests(meta, int64(cardCfg.CardID)) {
-			// transform data structure
-			reportDataRecord = append(reportDataRecord, ReportDataRecord{
-				URL:   issue.URL,
-				ID:    issue.ID,
-				Title: issue.Title,
-				Sig:   issue.Sig,
-			})
-		}
-		// send data through channel; data infos gathered
-		c <- ReportDataField{
-			Emoji:   cardCfg.Emoji,
-			Title:   cardCfg.CardsTitle,
-			Records: reportDataRecord,
-		}
-	}
-	wg.Done()
-}
-
-// run a github card requests to assemble cards data
-func assembleCardRequests(meta Meta, cardsID int64) chan ghIssueOverview {
-	// int64(e.CardID), meta.GitHubClient, meta.Env.GithubToken
-	c := make(chan ghIssueOverview)
-
-	cards, _, err := meta.GitHubClient.Projects.ListProjectCards(context.Background(), cardsID, &github.ProjectCardListOptions{})
-	if err != nil {
-		log.Fatalf("Error when querying cards.\n[ERROR] %v", err)
-	}
-
-	go func() {
-		defer close(c)
-		var wg sync.WaitGroup
-		for _, card := range cards {
-			wg.Add(1)
-			go func(card *github.ProjectCard, token string) {
-				if card.ContentURL != nil {
-					issueDetail, err := requestGhIssueDetail(*card.ContentURL, token)
-					if err != nil {
-						log.Fatalf("Error on requesting github card information.\n[ERROR] %v", err)
-					}
-
-					overview := ghIssueOverview{
-						URL:   issueDetail.HTMLURL,
-						ID:    issueDetail.Number,
-						Title: strings.Replace(issueDetail.Title, "[Failing Test]", "", -1),
-					}
-					for _, v := range issueDetail.Labels {
-						if strings.Contains(*v.Name, "sig/") {
-							overview.Sig = strings.Title(strings.Replace(*v.Name, "sig/", "", -1))
-							if strings.EqualFold(overview.Sig, "cli") {
-								overview.Sig = strings.ToUpper(overview.Sig)
-							}
-							if strings.EqualFold(overview.Sig, "cluster-lifecycle") {
-								overview.Sig = strings.ToLower(overview.Sig)
-							}
-							break
+			go func(issue GithubIssueElement) {
+				notes := []string{}
+				// add timestamp to report notes
+				if !meta.Flags.ShortOn {
+					updatedHighlight := ""
+					createdHighlight := ""
+					if !meta.Flags.EmojisOff {
+						if checkTimeBefore(issue.UpdatedAt, time.Now().AddDate(0, -1, 0)) {
+							updatedHighlight += statusFailingEmoji
+						}
+						if !checkTimeBefore(issue.UpdatedAt, time.Now().AddDate(0, 0, -2)) {
+							updatedHighlight += statusNewEmoji
+						}
+						if checkTimeBefore(issue.CreatedAt, time.Now().AddDate(0, -1, 0)) {
+							createdHighlight += statusFailingEmoji
+						}
+						if !checkTimeBefore(issue.CreatedAt, time.Now().AddDate(0, 0, -3)) {
+							createdHighlight += statusNewEmoji
 						}
 					}
-					c <- overview
+					notes = append(notes, fmt.Sprintf("%sCreated %s, %sUpdated %s, Comments: %d", createdHighlight, strings.Split(issue.CreatedAt, "T")[0], updatedHighlight, strings.Split(issue.UpdatedAt, "T")[0], issue.Comments))
+				}
+				// add lables to notes
+				lablesToNote := ""
+				sigsInvolved := []string{}
+				for _, label := range issue.Labels {
+					// filter sigs from notes
+					sig := sigRegex.FindString(label.Name)
+					if sig != "" {
+						sigsInvolved = append(sigsInvolved, sig)
+					}
+					// filter flag priority & kind/
+					if strings.Contains(label.Name, "priority") {
+						lablesToNote += fmt.Sprintf("%s%s%s ", colorGreen, label.Name, colorReset)
+					}
+					if strings.Contains(label.Name, "kind/") {
+						lablesToNote += fmt.Sprintf("%s%s%s ", colorRed, label.Name, colorReset)
+					}
+				}
+				// add milestone to lables if it is set
+				if !meta.Flags.ShortOn {
+					if issue.Milestone != nil {
+						lablesToNote += fmt.Sprintf("%smilestone %s%s", colorBlue, issue.Milestone.Title, colorReset)
+					}
+				}
+				if lablesToNote != "" {
+					notes = append(notes, lablesToNote)
+				}
+				// set information in ReportDataRecord
+				c <- ReportDataField{
+					Emoji: "",
+					Title: "",
+					Records: []ReportDataRecord{
+						{
+							URL:   issue.HTMLURL,
+							ID:    issue.Number,
+							Title: issue.Title,
+							Notes: notes,
+							Sig:   fmt.Sprintf("%v", sigsInvolved),
+						},
+					},
 				}
 				wg.Done()
-			}(card, meta.Env.GithubToken)
+			}(issue)
 		}
 		wg.Wait()
 	}()
 	return c
 }
 
-func findCardsID(client *github.Client, projectID int64, keyword string) (int64, error) {
-	cards, _, err := client.Projects.ListProjectColumns(context.Background(), projectID, &github.ListOptions{})
-	if err != nil {
-		return 0, err
+// GetGithubIssues get github issues
+func GetGithubIssues(cfg GithubIssueRequest) GithubIssuesAfterID {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues%s", cfg.Owner, cfg.Repo, "?state=open")
+	for param, val := range cfg.Params {
+		url += fmt.Sprintf("&%s=%s", param, val)
 	}
-	resolvedColumns := make([]*github.ProjectColumn, 0)
-	for _, v := range cards {
-		if v.Name != nil && *v.Name == keyword {
-			resolvedColumns = append(resolvedColumns, v)
+	collectedIssues := GithubIssuesAfterID{}
+	for issues := range assembleGithubIssues(url, cfg.AuthToken) {
+		for k, issue := range issues {
+			collectedIssues[k] = issue
 		}
 	}
-	sort.Slice(resolvedColumns, func(i, j int) bool {
-		return resolvedColumns[i].GetID() < resolvedColumns[j].GetID()
-	})
-	return resolvedColumns[0].GetID(), err
+	return collectedIssues
 }
 
-func requestGhIssueDetail(url string, authToken string) (ghIssueDetail, error) {
+func assembleGithubIssues(url string, authToken string) chan GithubIssuesAfterID {
+	c := make(chan GithubIssuesAfterID)
+	go func() {
+		defer close(c)
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go requestGithubIssues(c, &wg, url, 1, authToken)
+		wg.Wait()
+	}()
+	return c
+}
+
+// requestGithubIssues sends a http request to github to list issues
+func requestGithubIssues(c chan GithubIssuesAfterID, wg *sync.WaitGroup, url string, page int, authToken string) {
+	url = fmt.Sprintf("%s&%s=%d", url, string(IssueReqParamPage), page)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return ghIssueDetail{}, err
+		log.Fatalf("Error on creating http request.\n[ERROR] -%v", err)
 	}
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", authToken))
-
 	// Send http request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Error on response.\n[ERROR] %v", err)
+		log.Fatalf("Error on sending http request.\n[ERROR] -%v", err)
 	}
 	defer resp.Body.Close()
-
+	// Read body and unmarshal bytes
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return ghIssueDetail{}, err
+		log.Fatalf("Error on read from response body.\n[ERROR] -%v", err)
 	}
-	var result ghIssueDetail
-	err = json.Unmarshal(body, &result)
+	requestedIssues, err := UnmarshalGithubIssue(body)
 	if err != nil {
-		return ghIssueDetail{}, err
+		fmt.Println(url)
+		fmt.Println(string(body))
+		log.Fatalf("Error on UnmarshalGithubIssue.\n[ERROR] -%v", err)
 	}
-	return result, nil
+	// if result is not empty, request data from next website too
+	if len(requestedIssues) != 0 {
+		page++
+		wg.Add(1)
+		go requestGithubIssues(c, wg, url, page, authToken)
+	}
+	c <- filterGithubIssues(requestedIssues)
+	wg.Done()
 }
 
-// Internal types
-
-// ghIssueOverview information about a specific github issue
-type ghIssueOverview struct {
-	URL   string
-	ID    int64
-	Title string
-	Sig   string
+func filterGithubIssues(issues GithubIssues) GithubIssuesAfterID {
+	filteredIssues := GithubIssuesAfterID{}
+	for _, i := range issues {
+		fine := true
+		for _, label := range i.Labels {
+			// issues should not contain any of these lables
+			fine = fine && !strings.Contains(label.Name, "priority/backlog")
+			fine = fine && !strings.Contains(label.Name, "triage/accepted")
+			fine = fine && !strings.Contains(label.Name, "lifecycle/rotten")
+			fine = fine && !strings.Contains(label.Name, "lifecycle/stale")
+		}
+		// issues should not be a pull request
+		fine = fine && !strings.Contains(i.HTMLURL, "pull")
+		if fine {
+			filteredIssues[i.Number] = i
+		}
+	}
+	return filteredIssues
 }
 
-type ghIssueDetail struct {
-	Number  int64          `json:"number"`
-	HTMLURL string         `json:"html_url"`
-	Title   string         `json:"title"`
-	Labels  []github.Label `json:"labels,omitempty"`
+func checkTimeBefore(s string, u time.Time) bool {
+	layout := "2006-01-02T15:04:05Z"
+	t, _ := time.Parse(layout, s)
+	return t.Before(u)
 }
 
-type githubIssueCardConfig struct {
-	CardsTitle        string
-	CardID            int
-	Emoji             string
-	OmitWithFlagShort bool
+// GITHUB REQUEST
+
+// GithubIssueRequestParameters used to define how to pull issues from github useing GetGithubIssues
+type GithubIssueRequestParameters map[GithubIssueRequestParameter]string
+
+// GithubIssueRequestParameter parameter option that can be used to request issues from github
+type GithubIssueRequestParameter string
+
+// IssueReqParamLabels, IssueReqParamSort, IssueReqParamSince, IssueReqParamPerpage can be set to define how to get issues from github,  IssueReqParamPage get overwritten is not applied
+const (
+	IssueReqParamLabels  GithubIssueRequestParameter = "labels"
+	IssueReqParamSort    GithubIssueRequestParameter = "sort"
+	IssueReqParamSince   GithubIssueRequestParameter = "since"
+	IssueReqParamPerpage GithubIssueRequestParameter = "per_page"
+	IssueReqParamPage    GithubIssueRequestParameter = "page"
+)
+
+// GithubIssueRequest used to define how to gather github issue information
+type GithubIssueRequest struct {
+	Owner     string
+	Repo      string
+	Params    GithubIssueRequestParameters
+	AuthToken string
+}
+
+// GITHUB ISSUES
+
+// GithubIssues contains multiple GithubIssueElement
+type GithubIssues []GithubIssueElement
+
+// GithubIssuesAfterID issue id points to GithubIssueElement
+type GithubIssuesAfterID map[int64]GithubIssueElement
+
+// UnmarshalGithubIssue transforms []byte into GithubIssues
+func UnmarshalGithubIssue(data []byte) (GithubIssues, error) {
+	var r GithubIssues
+	err := json.Unmarshal(data, &r)
+	return r, err
+}
+
+// Marshal transformes GithubIssues into []byte
+func (r *GithubIssues) Marshal() ([]byte, error) {
+	return json.Marshal(r)
+}
+
+// GithubIssueElement github issue information
+type GithubIssueElement struct {
+	HTMLURL   string     `json:"html_url"`
+	Number    int64      `json:"number"`
+	Title     string     `json:"title"`
+	Labels    []Label    `json:"labels"`
+	State     string     `json:"state"`
+	Milestone *Milestone `json:"milestone"`
+	Comments  int64      `json:"comments"`
+	CreatedAt string     `json:"created_at"`
+	UpdatedAt string     `json:"updated_at"`
+	ClosedAt  string     `json:"closed_at"`
+}
+
+// Label github label
+type Label struct {
+	Name  string `json:"name"`
+	Color string `json:"color"`
+}
+
+// Milestone github milestone
+type Milestone struct {
+	Title string `json:"title"`
 }

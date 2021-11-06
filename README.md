@@ -49,45 +49,141 @@ curl \
 ## Example output
 
 ```bash
-GITHUB_AUTH_TOKEN=XXX go run ./cmd/ci-reporter.go -short
+$GITHUB_AUTH_TOKEN=XXX go run ./cmd/ci-reporter.go
+GITHUB REPORT
 
-----------
-🤔 New/Not Yet StartedSIG Cloud-Provider
-#100230 https://github.com/kubernetes/kubernetes/issues/100230 [Flaky Test] [sig-cloud-provider-gcp] Nodes [Disruptive] Resize [Slow] should be able to delete nodes
+#105965 volume metrics tests failure after removal of storage_operation_status_count [sig/storage]
+- https://github.com/kubernetes/kubernetes/issues/105965
+- Created 2021-10-28, Updated 2021-10-28, Comments: 3
+- kind/failing-test
+#105242 [Failing test][sig-storage] ci-kubernetes-e2e-gci-gce-serial [sig/storage]
+- https://github.com/kubernetes/kubernetes/issues/105242
+- 🔴Created 2021-09-24, ✨Updated 2021-11-05, Comments: 11
+- priority/important-soon kind/failing-test milestone v1.23
+#105675 HPA CPU e2e tests are failing [sig/autoscaling]
+- https://github.com/kubernetes/kubernetes/issues/105675
+- Created 2021-10-14, Updated 2021-10-14, Comments: 2
+- kind/failing-test
+#105580 [Failing Job] periodic-conformance-main-k8s-main [sig/cluster]
+- https://github.com/kubernetes/kubernetes/issues/105580
+- Created 2021-10-08, Updated 2021-11-01, Comments: 3
+- priority/important-soon kind/failing-test milestone v1.23
+#106139 Failure test: Volume metrics Ephemeral should create prometheus metrics for volume provisioning and attach/detach [sig/node]
+- https://github.com/kubernetes/kubernetes/issues/106139
+- ✨Created 2021-11-04, Updated 2021-11-04, Comments: 1
+- kind/failing-test
+#97783 Device manager for Windows passes when run on cluster that does not have a GPU but cuases cascading errors [sig/windows]
+- https://github.com/kubernetes/kubernetes/issues/97783
+- 🔴Created 2021-01-07, Updated 2021-10-14, Comments: 17
+- kind/flake
+#105677 HPA Custom metrics tests are failing [sig/autoscaling sig/testing]
+- https://github.com/kubernetes/kubernetes/issues/105677
+- Created 2021-10-14, Updated 2021-10-14, Comments: 2
+- kind/failing-test
+#99877 [flaky test] Test_Run_Positive_VolumeAttachMountUnmountDetach [sig/storage]
+- https://github.com/kubernetes/kubernetes/issues/99877
+- 🔴Created 2021-03-06, 🔴Updated 2021-10-05, Comments: 6
+- kind/bug kind/flake
+#89178 The Multi-AZ spreading test makes an incorrect assumption about which zones are candidates [sig/scheduling sig/testing]
+- https://github.com/kubernetes/kubernetes/issues/89178
+- 🔴Created 2020-03-17, Updated 2021-10-28, Comments: 18
+- kind/flake
+#105336 supported CNIs should have stable networking for Linux and Windows pods  [sig/windows]
+- https://github.com/kubernetes/kubernetes/issues/105336
+- 🔴Created 2021-09-29, 🔴Updated 2021-09-29, Comments: 1
+- kind/flake
+#104956 kubernetes-e2e-gce-stable1-latest-upgrade-master-parallel failed for oidc-discovery-test pod [sig/testing]
+- https://github.com/kubernetes/kubernetes/issues/104956
+- 🔴Created 2021-09-13, 🔴Updated 2021-09-14, Comments: 3
+- kind/failing-test
+#106008 [Failing test][sig-cloud-provider] gce-cos-master-serial [sig/cloud]
+- https://github.com/kubernetes/kubernetes/issues/106008
+- Created 2021-10-29, Updated 2021-11-01, Comments: 3
+- priority/important-soon kind/failing-test
+#98574 [Flaky Test] ci-kubernetes-e2e-aks-engine-azure-master-windows-containerd CNI failed to parse json [sig/windows]
+- https://github.com/kubernetes/kubernetes/issues/98574
+- 🔴Created 2021-01-29, Updated 2021-10-27, Comments: 13
+- kind/flake
+#106031 [Flaky Test] gce-ubuntu-master-containerd [sig/cloud]
+- https://github.com/kubernetes/kubernetes/issues/106031
+- Created 2021-10-31, Updated 2021-10-31, Comments: 3
+- kind/flake
+#104173 [Flaking test] DATA RACE in TestVolumeUnmountAndDetachControllerEnabled [sig/node]
+- https://github.com/kubernetes/kubernetes/issues/104173
+- 🔴Created 2021-08-05, 🔴Updated 2021-09-01, Comments: 8
+- kind/bug kind/flake kind/failing-test
 
 
-----------
-🛫 In flightSIG Network
-#93740 https://github.com/kubernetes/kubernetes/issues/93740 [Flaky Test][sig-network] Loadbalancing: L7 GCE [Slow] [Feature:Ingress] should conform to Ingress spec
+TESTGRID REPORT
 
-SIG Api-Machinery
-#100112 https://github.com/kubernetes/kubernetes/issues/100112 [flaky test] k8s.io/kubernetes/pkg/registry/core/endpoint/storage.TestWatch
-#100760 https://github.com/kubernetes/kubernetes/issues/100760 [Flaking-test] Kubernetes e2e suite.[sig-api-machinery] AdmissionWebhook [Privileged:ClusterAdmin] listing validating webhooks should work [Conformance]
 
-SIG Apps
-#100314 https://github.com/kubernetes/kubernetes/issues/100314 [Flaky Test] Kubernetes e2e suite: [sig-apps] Deployment iterative rollouts should eventually progress
-#98180 https://github.com/kubernetes/kubernetes/issues/98180 [Flaky Test] [sig-apps] Deployment should run the lifecycle of a Deployment
+🔥 Tests in Master-Blocking
+- 18 jobs total
+- 15 jobs passing
+- 3 jobs flaky
+- 0 jobs failing
 
-SIG Scalability
-#97071 https://github.com/kubernetes/kubernetes/issues/97071 [Flaky test] [sig-storage] In-tree Volumes [Driver: gcepd] [Testpattern: Pre-provisioned PV (xfs)][Slow] volumes should store data
-#103742 https://github.com/kubernetes/kubernetes/issues/103742 [Flaking Test] [sig-scalability] restarting konnectivity-agent (ci-kubernetes-e2e-gci-gce-scalability)
 
-SIG Release
-#1693 https://github.com/kubernetes/release/issues/1693 push-build.sh container image pushes should precede staging GCS artifacts and writing version markers
-
-⛔ Tests in Master-Blocking
-	18 jobs total
-	12 are passing
-	5 are flaking
-	1 are failing
-	0 are stale
+FAILING & FLAKY JOBS:
+FLAKY 🔵 verify-master
+- https://testgrid.k8s.io/sig-release-master-blocking#verify-master
+- 8 of 9 passed recently
+FLAKY 🔵 gci-gce-ingress
+- https://testgrid.k8s.io/sig-release-master-blocking#gci-gce-ingress
+- 9 of 10 passed recently
+FLAKY 🔵🔵🔵 gce-cos-master-default
+- https://testgrid.k8s.io/sig-release-master-blocking#gce-cos-master-default
+- 3 of 9 passed recently
 
 
 💡 Tests in Master-Informing
-	23 jobs total
-	9 are passing
-	12 are flaking
-	2 are failing
-	0 are stale
+- 23 jobs total
+- 10 jobs passing
+- 12 jobs flaky
+- 1 jobs failing
+
+
+FAILING & FLAKY JOBS:
+FLAKY ✨ post-release-push-image-vulndash
+- https://testgrid.k8s.io/sig-release-master-informing#post-release-push-image-vulndash
+- 1 of 2 passed recently
+FLAKY 🔵 kubeadm-kinder-latest
+- https://testgrid.k8s.io/sig-release-master-informing#kubeadm-kinder-latest
+- 9 of 10 passed recently
+FLAKY ✨ post-kubernetes-push-image-etcd
+- https://testgrid.k8s.io/sig-release-master-informing#post-kubernetes-push-image-etcd
+- 2 of 3 passed recently
+FLAKY 🔵 capg-conformance-v1alpha4-k8s-master
+- https://testgrid.k8s.io/sig-release-master-informing#capg-conformance-v1alpha4-k8s-master
+- 9 of 10 passed recently
+FLAKY 🔵 ci-crio-cgroupv1-node-e2e-conformance
+- https://testgrid.k8s.io/sig-release-master-informing#ci-crio-cgroupv1-node-e2e-conformance
+- 8 of 9 passed recently
+FAILING 🔴🔴🔴 gce-cos-master-serial
+- https://testgrid.k8s.io/sig-release-master-informing#gce-cos-master-serial
+- Sig's involved [sig-storage]
+- Currently 6 test are failing
+- 0 of 9 passed recently
+FLAKY 🔵🔵 gce-cos-master-slow
+- https://testgrid.k8s.io/sig-release-master-informing#gce-cos-master-slow
+- 7 of 9 passed recently
+FLAKY ✨ post-release-push-image-kube-cross
+- https://testgrid.k8s.io/sig-release-master-informing#post-release-push-image-kube-cross
+- 0 of 1 passed recently
+FLAKY 🔵 aks-engine-windows-containerd-master
+- https://testgrid.k8s.io/sig-release-master-informing#aks-engine-windows-containerd-master
+- 9 of 9 passed recently
+FLAKY 🔵 periodic-conformance-main-k8s-main
+- https://testgrid.k8s.io/sig-release-master-informing#periodic-conformance-main-k8s-main
+- 9 of 10 passed recently
+FLAKY ✨ post-release-push-image-debian-base
+- https://testgrid.k8s.io/sig-release-master-informing#post-release-push-image-debian-base
+- 0 of 1 passed recently
+FLAKY ✨ post-release-push-image-setcap
+- https://testgrid.k8s.io/sig-release-master-informing#post-release-push-image-setcap
+- 0 of 1 passed recently
+FLAKY ✨ post-release-push-image-go-runner
+- https://testgrid.k8s.io/sig-release-master-informing#post-release-push-image-go-runner
+- 1 of 2 passed recently
 
 ```
