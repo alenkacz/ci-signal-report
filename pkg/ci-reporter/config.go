@@ -45,6 +45,8 @@ type metaFlags struct {
 	ReleaseVersion []string
 	// JsonOut specifies if the output should be in json format
 	JsonOut bool
+	// Specify a report (if this is specified only one report will be printed e.g. SpecificReport: 'github' -> github report)
+	SpecificReport string
 }
 
 // Meta meta struct to use ci-reporter functions
@@ -72,16 +74,19 @@ func dataPostProcessing(r CIReport, reportName string, chanReportDataField chan 
 func SetMeta() Meta {
 	// Flags
 	// -short default: off
-	isFlagShortSet := flag.Bool("short", false, "a short report for mails and slack")
+	isFlagShortSet := flag.Bool("short", false, "Shortens the report")
 
 	// -emoji-off - default : on
-	isFlagEmojiOff := flag.Bool("emoji-off", false, "toggel if emojis should not be printed out")
+	isFlagEmojiOff := flag.Bool("emoji-off", false, "Remove emojis from report print-out")
 
 	// -v default: ""
-	releaseVersion := flag.String("v", "", "specify a release version to get additional report data")
+	releaseVersion := flag.String("v", "", "Adds specific K8s release version to the report (like -v '1.22, 1.21' or -v 1.22)")
 
 	// -emoji-off - default : off
-	isJsonOut := flag.Bool("json", false, "toggel if output should be printed in json format")
+	isJsonOut := flag.Bool("json", false, "Report gets printed out in json format")
+
+	// -emoji-off - default : off
+	specificReport := flag.String("report", "", fmt.Sprintf("Specify report, options: '%s', '%s'", githubReport, testgridReport))
 	flag.Parse()
 
 	var env metaEnv
@@ -107,10 +112,25 @@ func SetMeta() Meta {
 			EmojisOff:      *isFlagEmojiOff,
 			ReleaseVersion: splitReleaseVersionInput(*releaseVersion),
 			JsonOut:        *isJsonOut,
+			SpecificReport: *specificReport,
 		},
 		GitHubClient:       ghClient,
 		DataPostProcessing: dataPostProcessing,
 	}
+}
+
+// GetReporters used to get reporters that implement methods like RequestData and Print
+func (m Meta) GetReporters() []CIReport {
+	if m.Flags.SpecificReport == "" {
+		return []CIReport{&GithubReport{}, &TestgridReport{}}
+	} else if m.Flags.SpecificReport == githubReport {
+		return []CIReport{&GithubReport{}}
+	} else if m.Flags.SpecificReport == testgridReport {
+		return []CIReport{&TestgridReport{}}
+	} else {
+		log.Fatalf("Information given via flag -report does not match options [%s, %s]", githubReport, testgridReport)
+	}
+	return nil
 }
 
 // This function is used to split release version input ("1.22, 1.21" => ["1.22", "1.21"])

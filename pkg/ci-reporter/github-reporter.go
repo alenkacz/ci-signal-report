@@ -70,7 +70,7 @@ func (r *GithubReport) RequestData(meta Meta, wg *sync.WaitGroup) ReportData {
 	}
 
 	// DataPostProcessing collects data requested via assembleGithubRequests/2 and returns ReportData
-	return meta.DataPostProcessing(r, "github", assembleGithubRequests(meta, githubIssueCardConfigs), wg)
+	return meta.DataPostProcessing(r, githubReport, assembleGithubRequests(meta, githubIssueCardConfigs), wg)
 }
 
 // Print extends GithubReport and prints report data to the console

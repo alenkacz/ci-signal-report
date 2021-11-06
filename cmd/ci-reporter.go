@@ -24,7 +24,7 @@ import (
 
 func main() {
 	meta := ci_reporter.SetMeta()
-	cireporters := []ci_reporter.CIReport{&ci_reporter.GithubReport{}, &ci_reporter.TestgridReport{}}
+	cireporters := meta.GetReporters()
 
 	// request report data
 	report := ci_reporter.Report{}

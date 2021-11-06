@@ -23,6 +23,12 @@ import (
 	"sync"
 )
 
+// Reports
+const (
+	githubReport   = "github"
+	testgridReport = "testgrid"
+)
+
 // Github card ids
 const (
 	newCardsID                   = 4212817

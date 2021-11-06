@@ -46,7 +46,7 @@ func (r *TestgridReport) RequestData(meta Meta, wg *sync.WaitGroup) ReportData {
 		}
 	}
 
-	return meta.DataPostProcessing(r, "testgrid", assembleTestgridRequests(meta, requiredJobs), wg)
+	return meta.DataPostProcessing(r, testgridReport, assembleTestgridRequests(meta, requiredJobs), wg)
 }
 
 // Print extends TestgridReport and prints report data to the console
